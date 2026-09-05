@@ -243,7 +243,7 @@ h1,h2,h3 { font-weight: 300; letter-spacing: -0.01em; line-height: 1.05; }
 body.hero-light-on .hero { display: none; }
 body.hero-light-on .hero-light {
   display: flex; position: relative; align-items: flex-start;
-  height: 90vh; min-height: 560px; max-height: 100svh; overflow: hidden;
+  height: 90vh; min-height: 560px; max-height: 100svh; overflow: visible;
   padding: 88px 0 0; color: var(--blue);
   background:
     radial-gradient(90% 70% at 82% 8%, rgba(123,224,0,.12), transparent 55%),
