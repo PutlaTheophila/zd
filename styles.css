@@ -261,7 +261,7 @@ body.hero-light-on .hero-light {
 .hero-light__title {
   font-family: 'Suisse Intl', sans-serif; font-weight: 300;
   text-transform: uppercase; line-height: .9; letter-spacing: -0.01em;
-  font-size: clamp(46px, 7.7vw, 118px); color: var(--zd-navy); margin-bottom: 30px;
+  font-size: clamp(42px, 6.6vw, 100px); color: var(--zd-navy); margin-bottom: 30px;
 }
 .hero-light__title span { color: var(--zd-green); }
 .hero-light__lead {
