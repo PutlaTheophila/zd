@@ -278,7 +278,7 @@ body.hero-light-on .hero-light {
 .hero-light__count { margin-top: 46px; font-size: 15px; color: rgba(14,28,51,.4); letter-spacing: .05em; }
 .hero-light__count b { color: var(--zd-navy); font-weight: 600; }
 .hero-light__fleet {
-  position: absolute; right: 6vw; bottom: 0; z-index: 3; pointer-events: none;
+  position: absolute; right: 6vw; bottom: -7%; z-index: 3; pointer-events: none;
   width: min(70vw, 1240px); height: auto; object-fit: contain;
   filter: drop-shadow(0 26px 34px rgba(14,28,51,.22)) drop-shadow(0 8px 14px rgba(14,28,51,.15));
   animation:
