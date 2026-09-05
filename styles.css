@@ -281,6 +281,7 @@ body.hero-light-on .hero-light {
   position: absolute; right: 6vw; bottom: -7%; z-index: 3; pointer-events: none;
   width: min(70vw, 1240px); height: auto; object-fit: contain;
   filter:
+    brightness(.9)
     drop-shadow(0 46px 70px rgba(14,28,51,.34))
     drop-shadow(0 22px 34px rgba(14,28,51,.22))
     drop-shadow(0 8px 14px rgba(14,28,51,.16));
