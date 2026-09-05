@@ -36,26 +36,26 @@ document.getElementById('menuToggle').addEventListener('click', () => {
 
 // ===== Leaders marquee (real SDG clientele) =====
 const leaders = [
-  { name: 'Castrol', logo: '/assets/logos/castrol.png' },
-  { name: 'Reliance Industries', logo: '/assets/logos/reliance.png' },
-  { name: 'Larsen & Toubro', logo: '/assets/logos/larsen-toubro.png' },
-  { name: 'UltraTech Cement', logo: '/assets/logos/ultratech.png' },
-  { name: 'Saint-Gobain', logo: '/assets/logos/saint-gobain.png' },
-  { name: 'Asian Paints', logo: '/assets/logos/asian-paints.png' },
-  { name: 'Hindalco', logo: '/assets/logos/hindalco.png' },
-  { name: 'SANY', logo: '/assets/logos/sany.png' },
-  { name: 'Lafarge', logo: '/assets/logos/lafarge.png' },
-  { name: 'Gulf Oil', logo: '/assets/logos/gulf-oil.png' },
-  { name: 'Vestas', logo: '/assets/logos/vestas.png' },
-  { name: 'Hindustan Zinc', logo: '/assets/logos/hindustan-zinc.png' },
-  { name: 'Indian Railways', logo: '/assets/logos/indian-railways.png' },
-  { name: 'Essar', logo: '/assets/logos/essar.png' },
-  { name: 'Afcons', logo: '/assets/logos/afcons.png' },
-  { name: 'Henkel', logo: '/assets/logos/henkel.png' },
-  { name: 'Amway', logo: '/assets/logos/amway.png' },
-  { name: 'Valvoline', logo: '/assets/logos/valvoline.png' },
-  { name: 'Cummins', logo: '/assets/logos/cummins.png' },
-  { name: 'IG Petrochemicals', logo: '/assets/logos/ig-petrochemicals.png' }
+  { name: 'Castrol', logo: 'assets/logos/castrol.png' },
+  { name: 'Reliance Industries', logo: 'assets/logos/reliance.png' },
+  { name: 'Larsen & Toubro', logo: 'assets/logos/larsen-toubro.png' },
+  { name: 'UltraTech Cement', logo: 'assets/logos/ultratech.png' },
+  { name: 'Saint-Gobain', logo: 'assets/logos/saint-gobain.png' },
+  { name: 'Asian Paints', logo: 'assets/logos/asian-paints.png' },
+  { name: 'Hindalco', logo: 'assets/logos/hindalco.png' },
+  { name: 'SANY', logo: 'assets/logos/sany.png' },
+  { name: 'Lafarge', logo: 'assets/logos/lafarge.png' },
+  { name: 'Gulf Oil', logo: 'assets/logos/gulf-oil.png' },
+  { name: 'Vestas', logo: 'assets/logos/vestas.png' },
+  { name: 'Hindustan Zinc', logo: 'assets/logos/hindustan-zinc.png' },
+  { name: 'Indian Railways', logo: 'assets/logos/indian-railways.png' },
+  { name: 'Essar', logo: 'assets/logos/essar.png' },
+  { name: 'Afcons', logo: 'assets/logos/afcons.png' },
+  { name: 'Henkel', logo: 'assets/logos/henkel.png' },
+  { name: 'Amway', logo: 'assets/logos/amway.png' },
+  { name: 'Valvoline', logo: 'assets/logos/valvoline.png' },
+  { name: 'Cummins', logo: 'assets/logos/cummins.png' },
+  { name: 'IG Petrochemicals', logo: 'assets/logos/ig-petrochemicals.png' }
 ];
 const track = document.getElementById('leadersTrack');
 const buildLeader = (item) => {

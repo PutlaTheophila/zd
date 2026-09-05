@@ -240,14 +240,14 @@ h1,h2,h3 { font-weight: 300; letter-spacing: -0.01em; line-height: 1.05; }
 .hero-light { display: none; }
 body.hero-light-on .hero { display: none; }
 body.hero-light-on .hero-light {
-  display: flex; position: relative; align-items: center;
+  display: flex; position: relative; align-items: flex-start;
   height: 90vh; min-height: 560px; max-height: 100svh; overflow: hidden;
   padding: 88px 0 0; color: var(--blue);
   background:
     radial-gradient(90% 70% at 82% 8%, rgba(123,224,0,.12), transparent 55%),
     linear-gradient(180deg, #eef1f5 0%, #f6f8fb 55%, #ffffff 100%);
 }
-.hero-light__inner { position: relative; z-index: 2; width: 100%; display: flex; align-items: center; }
+.hero-light__inner { position: relative; z-index: 2; width: 100%; display: flex; align-items: flex-start; margin-top: 62px; }
 .hero-light__text { position: relative; z-index: 2; width: 100%; }
 .hero-light__eyebrow-wrap { position: absolute; top: 104px; left: 0; right: 0; z-index: 4; }
 .hero-light__eyebrow {
