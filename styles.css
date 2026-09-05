@@ -280,7 +280,10 @@ body.hero-light-on .hero-light {
 .hero-light__fleet {
   position: absolute; right: 6vw; bottom: -7%; z-index: 3; pointer-events: none;
   width: min(70vw, 1240px); height: auto; object-fit: contain;
-  filter: drop-shadow(0 26px 34px rgba(14,28,51,.22)) drop-shadow(0 8px 14px rgba(14,28,51,.15));
+  filter:
+    drop-shadow(0 46px 70px rgba(14,28,51,.34))
+    drop-shadow(0 22px 34px rgba(14,28,51,.22))
+    drop-shadow(0 8px 14px rgba(14,28,51,.16));
   animation:
     fleet-in 1.2s cubic-bezier(.2,.7,.2,1) .15s both,
     hero-drift 7s ease-in-out 1.6s infinite alternate;
