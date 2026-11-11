@@ -44,7 +44,7 @@ function init() {
   renderer.toneMappingExposure = 1.15;
 
   const scene = new THREE.Scene();
-  scene.fog = new THREE.Fog(0x0e1c33, 70, 240);
+  scene.fog = new THREE.Fog(0x5c9a3e, 70, 240);                 // distance haze in meadow green, matching the page behind the canvas
   const camera = new THREE.PerspectiveCamera(30, 1, 0.5, 4000);
 
   // ---------- texture helper ----------
@@ -396,6 +396,7 @@ function init() {
     }
     blobs.count = nb; trees.add(blobs);
     crowns.forEach((m, i) => { m.count = used[i]; m.instanceColor.needsUpdate = true; trees.add(m); });
+
   }
 
   // ---------- low drifting mist for the top-down stage ----------
@@ -1216,133 +1217,51 @@ function init() {
 
   // ---------- birds: two flocks crossing under the camera during the top-down drive ----------
   const birds = new THREE.Group(); driveWorld.add(birds);
-  const birdMat = new THREE.MeshStandardMaterial({ color: 0xf7f8f5, roughness: 0.75, side: THREE.DoubleSide, transparent: true });
-  const birdTip = new THREE.MeshStandardMaterial({ color: 0x2b3038, roughness: 0.8, side: THREE.DoubleSide, transparent: true });
+  // Egrets, modelled for a view from above: tapered body with neck, head and beak, a fanned tail, legs trailing behind,
+  // and wings in two jointed parts (arm and hand) with dark, fingered primaries.
+  const birdMats = [];
   const FLOCKS = [];
   {
-    const wing = new THREE.Shape(); wing.moveTo(0.3, 0); wing.quadraticCurveTo(0.36, 0.62, 0.08, 1.02); wing.lineTo(-0.1, 1.0); wing.quadraticCurveTo(-0.2, 0.55, -0.3, 0); wing.closePath();
-    const tip = new THREE.Shape(); tip.moveTo(0.08, 1.02); tip.quadraticCurveTo(0.02, 1.2, -0.04, 1.34); tip.quadraticCurveTo(-0.1, 1.2, -0.1, 1.0); tip.closePath();
-    const wingGeo = new THREE.ShapeGeometry(wing), tipGeo = new THREE.ShapeGeometry(tip);
-    [wingGeo, tipGeo].forEach((g) => g.rotateX(PI / 2));                             // span runs along +z, chord along x (x is forward)
-    const bodyGeo = new THREE.SphereGeometry(0.2, 10, 8); bodyGeo.scale(2.7, 0.8, 0.85);
-    const tailGeo = new THREE.ConeGeometry(0.16, 0.55, 6); tailGeo.rotateZ(PI / 2); tailGeo.translate(-0.7, 0, 0);
+    const mat = (color, o = {}) => { const m = new THREE.MeshStandardMaterial({ color, roughness: 0.7, metalness: 0, side: THREE.DoubleSide, transparent: true, envMapIntensity: 0.5, ...o }); birdMats.push(m); return m; };
+    const plume = mat(0xffffff, { vertexColors: true }), white = mat(0xf8f8f4), beakMat = mat(0xe9a11c, { roughness: 0.5 }), legMat = mat(0x24272c);
+    // flat feathered surface from an outline; tone(x, span) gives each outline point its shade, so tips can run to black
+    const feather = (pts, tone) => {
+      const g = new THREE.ShapeGeometry(new THREE.Shape(pts.map(([x, z]) => new THREE.Vector2(x, z)))), p = g.attributes.position, c = new Float32Array(p.count * 3);
+      for (let n = 0; n < p.count; n++) { const k = tone(p.getX(n), p.getY(n)); c[n * 3] = k; c[n * 3 + 1] = k; c[n * 3 + 2] = k * 0.98; }
+      g.setAttribute('color', new THREE.BufferAttribute(c, 3)); g.rotateX(PI / 2); return g;      // span along +z, chord along x (x is forward)
+    };
+    const ARM = 0.62;                                                                 // shoulder to wrist
+    const armGeo = feather([[0.27, 0], [0.33, ARM * 0.5], [0.35, ARM], [-0.2, ARM], [-0.27, ARM * 0.82], [-0.25, ARM * 0.66], [-0.32, ARM * 0.5], [-0.3, ARM * 0.34], [-0.36, ARM * 0.18], [-0.34, 0]],
+      (x) => 0.96 - Math.max(0, -x - 0.1) * 0.5);                                     // trailing edge a touch greyer
+    const handGeo = feather([[0.35, 0], [0.31, 0.3], [0.2, 0.62], [0.07, 0.92], [0.0, 0.84], [-0.03, 0.9], [-0.08, 0.79], [-0.12, 0.85], [-0.16, 0.71], [-0.2, 0.76], [-0.22, 0.58], [-0.24, 0.3], [-0.2, 0]],
+      (x, z) => 0.96 - Math.min(1, Math.max(0, (z - 0.34) / 0.3)) * 0.84);            // primaries darken to near-black tips
+    const tailGeo = feather([[-0.42, -0.07], [-0.42, 0.07], [-0.86, 0.25], [-0.93, 0.14], [-0.9, 0.05], [-0.95, 0], [-0.9, -0.05], [-0.93, -0.14], [-0.86, -0.25]], (x) => 0.97 - Math.max(0, -x - 0.6) * 0.5);
+    tailGeo.translate(0, 0.02, 0);
+    const prof = [[0.0, -0.6], [0.07, -0.5], [0.15, -0.28], [0.19, 0.0], [0.17, 0.26], [0.1, 0.46], [0.065, 0.62], [0.06, 0.74], [0.095, 0.83], [0.085, 0.92], [0.03, 0.98], [0.0, 1.0]];
+    const bodyGeo = new THREE.LatheGeometry(prof.map(([r, y]) => new THREE.Vector2(r, y)), 14); bodyGeo.rotateZ(-PI / 2); bodyGeo.scale(1, 0.85, 1);   // lies along +x, nose forward
+    const beakGeo = new THREE.ConeGeometry(0.035, 0.26, 8); beakGeo.rotateZ(-PI / 2); beakGeo.translate(1.11, 0, 0);
+    const legGeo = new THREE.CylinderGeometry(0.016, 0.02, 0.95, 5); legGeo.rotateZ(PI / 2); legGeo.translate(-0.86, -0.05, 0);
     const bird = () => {
-      const g = new THREE.Group(); g.add(new THREE.Mesh(bodyGeo, birdMat), new THREE.Mesh(tailGeo, birdMat));
-      const side = (sgn) => { const w = new THREE.Group(); w.add(new THREE.Mesh(wingGeo, birdMat), new THREE.Mesh(tipGeo, birdTip)); w.scale.z = sgn; g.add(w); return w; };
-      g.userData = { l: side(1), r: side(-1), phase: Math.random() * 6.28, rate: 7 + Math.random() * 2 };
+      const g = new THREE.Group(), rig = new THREE.Group(); g.add(rig);              // g holds the heading, rig the bank and the bob
+      rig.add(new THREE.Mesh(bodyGeo, white), new THREE.Mesh(beakGeo, beakMat), new THREE.Mesh(tailGeo, plume));
+      [-0.045, 0.045].forEach((z) => { const leg = new THREE.Mesh(legGeo, legMat); leg.position.z = z; rig.add(leg); });
+      const wing = (sgn) => {
+        const root = new THREE.Group(), wrist = new THREE.Group(); root.position.set(0.12, 0.06, 0); root.scale.z = sgn;      // the right wing is the left one mirrored
+        root.add(new THREE.Mesh(armGeo, plume)); wrist.position.z = ARM; wrist.add(new THREE.Mesh(handGeo, plume)); root.add(wrist); rig.add(root);
+        return { root, wrist, sgn };
+      };
+      g.userData = { rig, wings: [wing(1), wing(-1)], phase: Math.random() * 6.28, rate: 6.4 + Math.random() * 1.6, mood: Math.random() * 6.28 };
       g.traverse((o) => { if (o.isMesh) o.castShadow = true; });
       birds.add(g); return g;
     };
-    // dir is the heading in the x/z plane (from above, screen-left is +x and screen-up is +z); each flock flies a V behind its leader
-    [{ dir: [1, 0.42], y: 30, n: LITE ? 5 : 7, speed: 15, phase: 0, size: 1.5 }, { dir: [-1, 0.22], y: 23, n: LITE ? 3 : 4, speed: 12, phase: 95, size: 1.25 }].forEach((f) => {
+    // dir is the heading in the x/z plane (from above, screen-left is +x and screen-up is +z); each flock flies a loose V behind its leader
+    [{ dir: [1, 0.42], y: 30, n: LITE ? 5 : 7, speed: 15, phase: 0, size: 1.25 }, { dir: [-1, 0.22], y: 23, n: LITE ? 3 : 4, speed: 12, phase: 95, size: 1.05 }].forEach((f) => {
       const len = Math.hypot(f.dir[0], f.dir[1]); f.dx = f.dir[0] / len; f.dz = f.dir[1] / len;
-      f.birds = []; for (let i = 0; i < f.n; i++) { const b = bird(); b.scale.setScalar(f.size); b.rotation.y = Math.atan2(-f.dz, f.dx);
-        const row = Math.ceil(i / 2), sgn = i % 2 ? 1 : -1; b.userData.back = row * 2.9 + Math.random() * 0.8; b.userData.lat = sgn * row * 2.4; f.birds.push(b); }
+      f.birds = []; for (let i = 0; i < f.n; i++) { const b = bird(); b.scale.setScalar(f.size * (0.92 + Math.random() * 0.16)); b.rotation.y = Math.atan2(-f.dz, f.dx);
+        const row = Math.ceil(i / 2), sgn = i % 2 ? 1 : -1; b.userData.back = row * 3.1 + Math.random() * 1.2; b.userData.lat = sgn * (row * 2.5 + Math.random() * 0.6); f.birds.push(b); }
       FLOCKS.push(f);
     });
   }
-  // Nature ambience for the top-down drive, all synthesised (no audio files): wind that gusts, leaves that rustle harder
-  // with each gust, and a chorus of several birds near and far. Browsers only allow sound after a click, tap or key press,
-  // so it starts on the first one; the button in the corner mutes it and remembers the choice.
-  const song = (() => {
-    const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'drive__sound';
-    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9.5h3l4.5-3.5v12L7 14.5H4z"/><path class="w" d="M15 9.2a4 4 0 0 1 0 5.6M17.6 6.8a7.5 7.5 0 0 1 0 10.4"/><path class="x" d="M15.5 9.5l5 5M20.5 9.5l-5 5"/></svg>';
-    sceneEl.appendChild(btn);
-    let want = true; try { want = localStorage.getItem('zdSound') !== 'off'; } catch (e) { /* storage blocked */ }
-    let ctx = null, master = null, wind = null, leaves = null, birdBus = null, on = false, birdTimer = 0, gustTimer = 0, sleep = 0;
-    const R = Math.random;
-    const paint = () => { btn.classList.toggle('is-muted', !want); btn.setAttribute('aria-label', want ? 'Mute nature sounds' : 'Turn nature sounds on'); btn.title = want ? 'Mute' : 'Sound on'; };
-    const noise = (secs, brown) => {                                                 // looping noise bed: brown for wind, white for leaves
-      const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * secs), ctx.sampleRate), d = buf.getChannelData(0); let last = 0;
-      for (let n = 0; n < d.length; n++) { const w = R() * 2 - 1; if (brown) { last = (last + 0.02 * w) / 1.02; d[n] = last * 3.5; } else d[n] = w; }
-      const src = ctx.createBufferSource(); src.buffer = buf; src.loop = true; src.start(); return src;
-    };
-    const setup = () => {
-      const AC = window.AudioContext || window.webkitAudioContext; ctx = new AC();
-      master = ctx.createGain(); master.gain.value = 0; master.connect(ctx.destination);
-      // wind: low rumble whose brightness and level swell with each gust, plus a thin airy layer above it
-      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 380; lp.Q.value = 0.7;
-      const wg = ctx.createGain(); wg.gain.value = 0.3; noise(5, true).connect(lp); lp.connect(wg); wg.connect(master);
-      const air = ctx.createBiquadFilter(); air.type = 'bandpass'; air.frequency.value = 1100; air.Q.value = 0.9;
-      const ag = ctx.createGain(); ag.gain.value = 0.012; noise(3.3, false).connect(air); air.connect(ag); ag.connect(master);
-      wind = { lp, wg, ag };
-      // leaves: bright hiss shaped by a fast flutter, so it shimmers rather than hisses; its level follows the gusts
-      const hp = ctx.createBiquadFilter(); hp.type = 'bandpass'; hp.frequency.value = 5200; hp.Q.value = 0.45;
-      const flutter = ctx.createGain(); flutter.gain.value = 0.6; const lfo = ctx.createOscillator(); lfo.frequency.value = 7.3; const depth = ctx.createGain(); depth.gain.value = 0.35;
-      lfo.connect(depth); depth.connect(flutter.gain); lfo.start();
-      const lg = ctx.createGain(); lg.gain.value = 0.03; noise(4.1, false).connect(hp); hp.connect(flutter); flutter.connect(lg); lg.connect(master);
-      leaves = { lg, hp };
-      // birds: dry signal plus a short filtered echo, which reads as open air rather than a room
-      birdBus = ctx.createGain(); birdBus.gain.value = 0.55; birdBus.connect(master);
-      const dl = ctx.createDelay(0.5); dl.delayTime.value = 0.13; const fb = ctx.createGain(); fb.gain.value = 0.24;
-      const damp = ctx.createBiquadFilter(); damp.type = 'lowpass'; damp.frequency.value = 2600; const wet = ctx.createGain(); wet.gain.value = 0.3;
-      birdBus.connect(dl); dl.connect(damp); damp.connect(fb); fb.connect(dl); damp.connect(wet); wet.connect(master);
-    };
-    const unlock = () => {
-      if (!want) return;
-      if (!ctx) { try { setup(); } catch (e) { ctx = null; return; } }
-      sync();
-    };
-    // a gust: wind brightens and rises, the leaves answer a moment later, then both settle back
-    const gust = () => {
-      gustTimer = 0; if (!on || !want || !ctx || document.hidden) return;
-      const g = 0.35 + R() * 0.65, at = ctx.currentTime, rise = 0.5 + R() * 0.7, hold = 1.2 + R() * 2.2;
-      wind.lp.frequency.setTargetAtTime(380 + g * 950, at, rise); wind.wg.gain.setTargetAtTime(0.3 + g * 0.6, at, rise); wind.ag.gain.setTargetAtTime(0.012 + g * 0.05, at, rise);
-      leaves.lg.gain.setTargetAtTime(0.03 + g * 0.22, at + 0.35, rise * 1.1); leaves.hp.frequency.setTargetAtTime(4600 + g * 2200, at + 0.35, rise);
-      const off = at + rise * 2 + hold;
-      wind.lp.frequency.setTargetAtTime(380, off, 1.4); wind.wg.gain.setTargetAtTime(0.3, off, 1.4); wind.ag.gain.setTargetAtTime(0.012, off, 1.4);
-      leaves.lg.gain.setTargetAtTime(0.03, off, 1.1); leaves.hp.frequency.setTargetAtTime(5200, off, 1.2);
-      gustTimer = setTimeout(gust, (rise * 2 + hold + 1.5 + R() * 4.5) * 1000);
-    };
-    // one bird note: a sine with a faint overtone, gliding f0 -> f1 -> f2
-    const note = (at, f0, f1, f2, dur, vol, pan) => {
-      const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, at); g.gain.exponentialRampToValueAtTime(vol, at + dur * 0.22); g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
-      [[1, 1], [2, 0.16]].forEach(([mult, lvl]) => {
-        const o = ctx.createOscillator(), og = ctx.createGain(); og.gain.value = lvl;
-        o.frequency.setValueAtTime(f0 * mult, at); o.frequency.exponentialRampToValueAtTime(f1 * mult, at + dur * 0.5); o.frequency.exponentialRampToValueAtTime(f2 * mult, at + dur);
-        o.connect(og); og.connect(g); o.start(at); o.stop(at + dur + 0.03);
-      });
-      if (ctx.createStereoPanner) { const sp = ctx.createStereoPanner(); sp.pan.value = pan; g.connect(sp); sp.connect(birdBus); } else g.connect(birdBus);
-    };
-    // five birds with their own pitch, place in the stereo field, distance and song shape
-    const VOICES = [
-      { base: 3100, pan: -0.6, vol: 0.5, kind: 'tweet' }, { base: 4300, pan: 0.5, vol: 0.4, kind: 'trill' }, { base: 2300, pan: 0.15, vol: 0.45, kind: 'whistle' },
-      { base: 3700, pan: -0.9, vol: 0.16, kind: 'tweet' }, { base: 5200, pan: 0.85, vol: 0.14, kind: 'trill' }, { base: 1750, pan: -0.25, vol: 0.3, kind: 'coo' },
-    ];
-    const sing = (v, delay) => {
-      const at = ctx.currentTime + 0.03 + delay, f = v.base * (0.94 + R() * 0.12), vol = v.vol * (0.7 + R() * 0.5), pan = Math.max(-1, Math.min(1, v.pan + (R() - 0.5) * 0.3));
-      if (v.kind === 'tweet') { const n = 2 + Math.floor(R() * 4), gap = 0.13 + R() * 0.06; for (let k = 0; k < n; k++) note(at + k * gap, f, f * (1.35 + R() * 0.2), f * 1.1, 0.085, vol, pan); }
-      else if (v.kind === 'trill') { const n = 7 + Math.floor(R() * 9), gap = 0.045 + R() * 0.02; for (let k = 0; k < n; k++) note(at + k * gap, f * 1.15, f * 1.02, f * 1.1, 0.036, vol * (0.6 + 0.4 * Math.sin(k / n * Math.PI)), pan); }
-      else if (v.kind === 'whistle') { note(at, f * 1.5, f * 1.1, f * 0.95, 0.3, vol, pan); note(at + 0.36, f * 1.05, f * 1.3, f * 1.38, 0.14, vol * 0.8, pan); if (R() < 0.5) note(at + 0.56, f * 1.3, f * 1.5, f * 1.2, 0.12, vol * 0.7, pan); }
-      else { note(at, f, f * 1.12, f * 0.96, 0.24, vol, pan); note(at + 0.34, f, f * 1.1, f * 0.93, 0.3, vol * 0.85, pan); }
-    };
-    const chorus = () => {
-      birdTimer = 0; if (!on || !want || !ctx || document.hidden) return;
-      const cluster = R() < 0.3 ? 3 + Math.floor(R() * 3) : 1;                        // now and then several birds answer each other
-      for (let k = 0; k < cluster; k++) sing(VOICES[Math.floor(R() * VOICES.length)], k * (0.12 + R() * 0.35));
-      birdTimer = setTimeout(chorus, (cluster > 1 ? 1400 : 300) + R() * 1500);
-    };
-    function sync() {
-      if (!ctx) return;
-      const audible = on && want && !document.hidden;
-      clearTimeout(sleep);
-      if (audible) {
-        if (ctx.state === 'suspended') ctx.resume();
-        master.gain.setTargetAtTime(0.42, ctx.currentTime, 0.5);
-        if (!birdTimer) birdTimer = setTimeout(chorus, 250);
-        if (!gustTimer) gustTimer = setTimeout(gust, 900);
-      } else {
-        master.gain.setTargetAtTime(0, ctx.currentTime, 0.3);
-        sleep = setTimeout(() => { if (ctx.state === 'running') ctx.suspend(); }, 1800);   // no audio work while the stage is off screen
-      }
-    }
-    ['pointerdown', 'keydown', 'touchend'].forEach((ev) => window.addEventListener(ev, unlock, { passive: true }));
-    document.addEventListener('visibilitychange', sync);
-    btn.addEventListener('click', () => { want = !want; try { localStorage.setItem('zdSound', want ? 'on' : 'off'); } catch (e) { /* storage blocked */ } paint(); if (want) unlock(); else sync(); });
-    paint();
-    return (active) => { if (active === on) return; on = active; btn.classList.toggle('is-on', on); sync(); };
-  })();
-
   // ---------- camera: front three-quarter -> side-on -> top-down -> out to the map, keyed to timeline time ----------
   // pos/look are offsets from the truck in world axes. From above, screen-up is +z and screen-left is +x.
   const lerp = (a, b, k) => a + (b - a) * k;
@@ -1478,14 +1397,14 @@ function init() {
     driveWorld.visible = !onMap; mapWorld.visible = onMap;
     // lifting to top-down: the dark ground gives way to the light page, leaving the road as a ribbon
     const lift = step(3.05, 3.8, t);
-    ground.material.opacity = 1 - lift; ground.visible = lift < 1;
+    ground.visible = false;                                                          // the road runs through grass from the first frame
     clouds.visible = t < 3.45;
     const leave = step(T_DRIVE + 0.05, T_DRIVE + 0.4, t);                            // road-side detail sinks away as the camera climbs out
     const haze = step(3.55, 4.3, t) * (1 - leave);                                   // mist arrives as the camera climbs
     mist.visible = haze > 0; mistMats.forEach((m) => { m.opacity = 0.85 * haze; });
     const grow = step(3.45, 3.95, t) * (1 - leave);                                  // trees rise only once the camera is looking down
     trees.visible = grow > 0; trees.scale.y = Math.max(0.001, grow);
-    land.visible = lift > 0.02;                                                      // grass, shoulder and trees under the fading ground
+    land.visible = true;                                                             // grass and shoulder always; trees only from above (see grow)
     scene.fog.near = onMap ? 4000 : lerp(70, 500, lift); scene.fog.far = onMap ? 12000 : lerp(240, 1400, lift);
 
     // landscape -> map: a green wash rises over the grass and road, shifts to the map's green, the worlds swap
@@ -1511,16 +1430,21 @@ function init() {
       groundText.children.forEach((m) => { m.scale.setScalar(k); m.position.set(GT.rx + m.userData.side * (GT.near + room / 2), -0.16, m.userData.z); });
     }
     const fly = step(3.7, 4.2, t) * (1 - step(8.45, 8.75, t));                       // birds are about only while the camera looks straight down
-    birds.visible = fly > 0.01; birdMat.opacity = birdTip.opacity = fly;
+    birds.visible = fly > 0.01; birdMats.forEach((m) => { m.opacity = fly; });
     if (birds.visible) FLOCKS.forEach((f) => {
       const s = ((now * f.speed + f.phase) % 190) - 95;                             // one pass across the view, then round again
       f.birds.forEach((b) => {
-        const u = b.userData, along = s - u.back, flap = Math.sin(now * u.rate + u.phase);
-        b.position.set(hx + f.dx * along - f.dz * u.lat, f.y + Math.sin(now * 1.3 + u.phase) * 0.5, hz + f.dz * along + f.dx * u.lat);
-        u.l.rotation.x = flap * 0.6; u.r.rotation.x = -flap * 0.6;                    // wingtips beat up and down
+        const u = b.userData, ph = now * u.rate + u.phase;
+        // each bird flaps for a while, then holds its wings out and glides; the hand trails the arm by a fraction of a beat
+        const glide = step(0.35, 0.65, Math.sin(now * 0.42 + u.mood)), beat = 1 - glide;
+        const arm = lerp(0.1 + 0.62 * Math.sin(ph), 0.16, glide), hand = lerp(-0.12 + 0.55 * Math.sin(ph - 1.05), -0.06, glide);
+        u.wings.forEach((wg) => { wg.root.rotation.x = -wg.sgn * arm; wg.wrist.rotation.x = -hand; });
+        const along = s - u.back + Math.sin(now * 0.31 + u.mood * 2) * 0.7, lat = u.lat + Math.sin(now * 0.37 + u.mood) * 0.55;   // drifting in formation
+        b.position.set(hx + f.dx * along - f.dz * lat, f.y + Math.sin(now * 0.9 + u.mood) * 0.5, hz + f.dz * along + f.dx * lat);
+        u.rig.position.y = -Math.sin(ph) * 0.11 * beat;                               // the body dips as the wings come up
+        u.rig.rotation.x = Math.cos(now * 0.37 + u.mood) * 0.16;                      // banks into its sideways drift
       });
     });
-    song(fly > 0.5 && onScreen);
 
     placeCamera(t, w / h, at);
 
