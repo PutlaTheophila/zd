@@ -8,11 +8,14 @@
 // If WebGL or three.js is unavailable the hero shows its copy without a truck.
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js';
 
+// The loading screen (index.html) stays up until every part below has reported in: logo texture, India map data,
+// neighbouring countries, and the first drawn frame. window.zdAssetsReady is what it watches.
+const assets = { left: 4, done() { if (--this.left <= 0) window.zdAssetsReady = true; } };
 const canvas = document.getElementById('driveCanvas');
 const sceneEl = canvas && canvas.closest('.drive__scene');
 if (canvas && sceneEl) {
-  try { init(); } catch (err) { console.warn('[truck3d] 3D scene unavailable:', err); }
-}
+  try { init(); } catch (err) { console.warn('[truck3d] 3D scene unavailable:', err); window.zdAssetsReady = true; }
+} else window.zdAssetsReady = true;
 
 function init() {
   const R = 0.52;              // wheel radius
@@ -853,6 +856,7 @@ function init() {
     mapWorld.userData.fleet();                                     // now the truck is complete, copy it for the map
   };
   logoImg.onerror = () => mapWorld.userData.fleet();
+  logoImg.addEventListener('load', () => assets.done()); logoImg.addEventListener('error', () => assets.done());
   logoImg.src = 'assets/logos/zero-drive-logo.png';
 
   // ---------- drive world vs map world ----------
@@ -971,7 +975,7 @@ function init() {
         const m = new THREE.Mesh(g, [top, side]); m.position.y = -2.2; m.receiveShadow = true; mapWorld.add(m);
       });
       redraw = true;
-    }).catch((err) => console.warn('[truck3d] neighbouring countries failed to load:', err));
+    }).catch((err) => console.warn('[truck3d] neighbouring countries failed to load:', err)).finally(() => assets.done());
 
     // clouds: soft, photographic-looking billboards built from hundreds of faint overlapping puffs
     const cloudTex = () => canvasTex(512, 512, (g, w) => {
@@ -1120,7 +1124,7 @@ function init() {
       const bg = new THREE.BufferGeometry(); bg.setAttribute('position', new THREE.Float32BufferAttribute(bp, 3));
       mapWorld.add(new THREE.Mesh(bg, new THREE.MeshBasicMaterial({ color: 0x3f7a26, transparent: true, opacity: 0.6, side: THREE.DoubleSide, depthWrite: false, fog: false, toneMapped: false })));
       redraw = true;
-    }).catch((err) => console.warn('[truck3d] India map data failed to load:', err));
+    }).catch((err) => console.warn('[truck3d] India map data failed to load:', err)).finally(() => assets.done());
   }
 
   // ---------- camera: front three-quarter -> side-on -> top-down -> out to the map, keyed to timeline time ----------
@@ -1308,7 +1312,7 @@ function init() {
       proj.copy(l.v).project(camera);
       l.el.style.opacity = show; l.el.style.transform = `translate(${((proj.x + 1) / 2 * w).toFixed(1)}px, ${((1 - proj.y) / 2 * h).toFixed(1)}px)`;
     });
-    if (!shown) { shown = true; document.body.classList.add('drive-3d'); }
+    if (!shown) { shown = true; document.body.classList.add('drive-3d'); assets.done(); }
   }
   frame();
 }

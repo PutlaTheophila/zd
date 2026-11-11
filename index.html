@@ -11,6 +11,38 @@
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+<!-- Loading screen: the logo assembles itself, and its green underline is the progress bar -->
+<div class="loader" id="loader" role="status" aria-label="Loading Zero Drive">
+  <div class="loader__logo" aria-hidden="true">
+    <i class="loader__mark"></i><i class="loader__bar"></i><i class="loader__word"></i><i class="loader__line"></i><i class="loader__tag"></i>
+  </div>
+</div>
+<noscript><style>.loader { display: none; }</style></noscript>
+<script>
+(function () {
+  var el = document.getElementById('loader'), root = document.documentElement;
+  var t0 = Date.now(), MIN = 1700, MAX = 20000, p = 0, loaded = false, fonts = !document.fonts, done = false;   // MAX is only a safety net for a broken network
+  if (document.fonts) document.fonts.ready.then(function () { fonts = true; }, function () { fonts = true; });
+  root.classList.add('is-loading');
+  window.addEventListener('load', function () { loaded = true; });
+  var tick = setInterval(function () {
+    var age = Date.now() - t0;
+    // ready = every image/script/stylesheet in (window load), fonts in, and the 3D hero has its logo texture and map data
+    // and has drawn a frame (js/truck3d.js sets zdAssetsReady) — plus enough time for the intro to play
+    var ready = (loaded && fonts && window.zdAssetsReady === true && age > MIN) || age > MAX;
+    p = ready ? 1 : Math.max(p, 0.9 * (1 - Math.exp(-age / 1400)));      // creeps towards 90% until everything is really in
+    el.style.setProperty('--p', p.toFixed(3));
+    if (ready && !done) {
+      done = true; clearInterval(tick);
+      setTimeout(function () {
+        el.classList.add('is-out'); root.classList.remove('is-loading');
+        if (window.ScrollTrigger) window.ScrollTrigger.refresh();
+        setTimeout(function () { el.remove(); }, 700);
+      }, 380);                                                              // lets the underline finish reaching the end
+    }
+  }, 60);
+})();
+</script>
 
 <!-- ===== Header ===== -->
 <header class="header" id="header">
@@ -54,8 +86,7 @@
         <h1 class="drive__title">Electrifying <span>India's</span> Highways</h1>
         <p class="drive__lead">Launched 15 August 2026 on one conviction: freight can move without burning diesel. Scroll to see how.</p>
         <div class="drive__cta">
-          <a href="#contact" class="btn btn--primary">Get a Quote <span class="btn__arrow">→</span></a>
-          <a href="#idea" class="btn btn--ghost">The Zero Idea</a>
+          <a href="#idea" class="btn btn--primary">The Zero Idea <span class="btn__arrow">→</span></a>
         </div>
       </div>
 
@@ -227,29 +258,29 @@
       <h2 class="net__title net__title--sub">Building the charging backbone <span>for long-haul EVs</span></h2>
       <div class="net__row net__row--top">
         <div class="net__side">
-          <div class="net__num">100</div>
+          <svg class="net__ico net__ico--badge" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="4.5" width="13" height="23" rx="2"/><path d="M4 27.5h17"/><path d="M13.5 10l-3 5.5h4l-3 5.5"/><path d="M19 13h2.5a2 2 0 0 1 2 2v6a2 2 0 0 0 4 0v-9l-3-3"/></svg><div class="net__num">100</div>
           <h3>Charging stations across India in the next 2 years</h3>
           <p>Backed by ₹100 Cr in charging infrastructure and ₹100 Cr in real estate.</p>
         </div>
         <div class="net__table" role="table" aria-label="Charging stations by corridor">
           <div class="net__tr net__tr--head" role="row"><span role="columnheader">Corridor</span><span role="columnheader">Charging station</span><span role="columnheader">Status</span></div>
-          <div class="net__tr" role="row"><span role="cell">Mumbai → Mundra</span><span role="cell">Morbi</span><span role="cell">Being set up</span></div>
-          <div class="net__tr" role="row"><span role="cell">Mumbai → Pithampur</span><span role="cell">Sangurli</span><span role="cell">Being set up</span></div>
-          <div class="net__tr" role="row"><span role="cell">Mumbai → Chennai</span><span role="cell">Locations in survey</span><span role="cell">Route survey underway</span></div>
+          <div class="net__tr" role="row"><span role="cell"><svg class="net__i" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="7" cy="24" r="3"/><circle cx="25" cy="8" r="3"/><path d="M10 24h8a4 4 0 0 0 0-8h-4a4 4 0 0 1 0-8h8"/></svg>Mumbai → Mundra</span><span role="cell"><svg class="net__i" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 28.5s9-8 9-15a9 9 0 0 0-18 0c0 7 9 15 9 15z"/><path d="M17 9l-3 5h4l-3 5"/></svg>Morbi</span><span role="cell"><i class="net__dot is-build"></i>Being set up</span></div>
+          <div class="net__tr" role="row"><span role="cell"><svg class="net__i" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="7" cy="24" r="3"/><circle cx="25" cy="8" r="3"/><path d="M10 24h8a4 4 0 0 0 0-8h-4a4 4 0 0 1 0-8h8"/></svg>Mumbai → Pithampur</span><span role="cell"><svg class="net__i" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 28.5s9-8 9-15a9 9 0 0 0-18 0c0 7 9 15 9 15z"/><path d="M17 9l-3 5h4l-3 5"/></svg>Sangurli</span><span role="cell"><i class="net__dot is-build"></i>Being set up</span></div>
+          <div class="net__tr" role="row"><span role="cell"><svg class="net__i" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="7" cy="24" r="3"/><circle cx="25" cy="8" r="3"/><path d="M10 24h8a4 4 0 0 0 0-8h-4a4 4 0 0 1 0-8h8"/></svg>Mumbai → Chennai</span><span role="cell"><svg class="net__i" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 28.5s9-8 9-15a9 9 0 0 0-18 0c0 7 9 15 9 15z"/><path d="M17 9l-3 5h4l-3 5"/></svg>Locations in survey</span><span role="cell"><i class="net__dot is-survey"></i>Route survey underway</span></div>
         </div>
       </div>
 
       <h2 class="net__title net__title--sub">School of operator training <span>from helper to licensed operator</span></h2>
       <ol class="net__steps">
-        <li><b>Hire</b><span>Recruit helpers at scale</span></li>
-        <li><b>Train</b><span>Hands-on, on-site training</span></li>
-        <li><b>Certify</b><span>Zero Drive certification</span></li>
-        <li><b>License</b><span>Support to get licensed</span></li>
+        <li><svg class="net__ico" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="13" cy="11" r="5"/><path d="M4 27c0-5 4-8.5 9-8.5s9 3.5 9 8.5"/><path d="M25 8v8M21 12h8"/></svg><b>Hire</b><span>Recruit helpers at scale</span></li>
+        <li><svg class="net__ico" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="16" cy="16" r="11.5"/><circle cx="16" cy="16" r="2.5"/><path d="M4.800 14h8.900M18.300 14h8.900M16 18.5v9"/></svg><b>Train</b><span>Hands-on, on-site training</span></li>
+        <li><svg class="net__ico" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="16" cy="12.5" r="8"/><path d="M12.5 12.700l2.5 2.5 4.5-4.800"/><path d="M11.5 19.5L9.5 29l6.5-3.5 6.5 3.5-2-9.5"/></svg><b>Certify</b><span>Zero Drive certification</span></li>
+        <li><svg class="net__ico" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="7" width="25" height="18" rx="2.5"/><circle cx="11" cy="14.5" r="2.800"/><path d="M6.800 21c.6-2.200 2.200-3.300 4.200-3.300s3.600 1.100 4.200 3.300M19 13h6M19 17h6M19 21h3.5"/></svg><b>License</b><span>Support to get licensed</span></li>
       </ol>
       <div class="net__goals">
-        <div><b>1,000</b><span>trailers in the fleet within 3 years</span></div>
-        <div><b>100</b><span>people employed by March 2027</span></div>
-        <div><b>2,000+</b><span>people employed within 3 years</span></div>
+        <div><svg class="net__ico" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 9h16v13h-16zM18.5 13h6l5 5v4h-11z"/><circle cx="8.5" cy="23.5" r="2.5"/><circle cx="23.5" cy="23.5" r="2.5"/></svg><b>1,000</b><span>trailers in the fleet within 3 years</span></div>
+        <div><svg class="net__ico" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="11" r="4.5"/><path d="M3.5 26c0-4.5 3.800-7.5 8.5-7.5s8.5 3 8.5 7.5"/><circle cx="23" cy="12.5" r="3.5"/><path d="M23.5 19c3 .4 5.5 2.800 5.5 6.5"/></svg><b>100</b><span>people employed by March 2027</span></div>
+        <div><svg class="net__ico" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 25l7.5-8 5 4.5L28 9"/><path d="M20.5 9H28v7.5"/><path d="M4 28.5h24"/></svg><b>2,000+</b><span>people employed within 3 years</span></div>
       </div>
     </div>
   </section>

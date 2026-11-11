@@ -60,14 +60,58 @@ form.addEventListener('submit', (e) => {
   setTimeout(() => ok.classList.remove('show'), 6000);
 });
 
-// ===== Reveal on scroll =====
-const io = new IntersectionObserver((entries) => {
-  entries.forEach((en) => {
-    if (en.isIntersecting) { en.target.style.opacity = 1; en.target.style.transform = 'none'; io.unobserve(en.target); }
+// ===== Reveal on scroll (every section after the hero) =====
+// Elements get a hidden starting state (.rv + a variant) and are released as they enter the viewport.
+// Siblings in a grid are staggered. Once an element has settled the classes are removed again, so its
+// own hover transitions behave exactly as before. Skipped entirely for reduced-motion users.
+if (!matchMedia('(prefers-reduced-motion: reduce)').matches && 'IntersectionObserver' in window) {
+  const order = new Map();
+  const mark = (sel, kind, step = 0, base = 0, cap = 8) => document.querySelectorAll(sel).forEach((el) => {
+    if (el.closest('.drive') || el.classList.contains('rv')) return;
+    const n = order.get(el.parentElement) || 0; order.set(el.parentElement, n + 1);
+    el.classList.add('rv', 'rv--' + kind);
+    el.style.setProperty('--d', (base + Math.min(n, cap) * step).toFixed(2) + 's');
   });
-}, { threshold: 0.12 });
-document.querySelectorAll('.card, .role, .kf__grid > div, .backed__stat, .intro__grid > *').forEach((el) => {
-  el.style.opacity = 0; el.style.transform = 'translateY(24px)';
-  el.style.transition = 'opacity .7s ease, transform .7s ease';
-  io.observe(el);
-});
+  mark('main section .eyebrow', 'left');
+  mark('main section h2', 'rise');
+  mark('.features__head p, .leaders__sub, .net__lead, .kf__note, .careers__head p, .careers__cta, .backed__grid .btn, .backed__grid > div:first-child > p', 'up', 0, 0.15);
+  mark('.intro__grid > *', 'up', 0.12);
+  mark('.card, .role, .kf__grid > div, .backed__stat, .spec, .net__side, .net__steps li, .net__goals > div, .footer__top > *', 'up', 0.09);
+  mark('.net__tr, .net__lists li', 'row', 0.07);
+  mark('.leader', 'scale', 0.035, 0, 14);
+  mark('.demo__card', 'scale');
+
+  const io = new IntersectionObserver((entries) => entries.forEach((en) => {
+    if (!en.isIntersecting && en.boundingClientRect.top > 0) return;   // still below the fold; anything on screen or already scrolled past is shown
+    const el = en.target; io.unobserve(el);
+    el.classList.add('is-in');
+    setTimeout(() => { el.classList.remove('rv', 'is-in', ...[...el.classList].filter((c) => c.startsWith('rv--'))); el.style.removeProperty('--d'); },
+      1300 + parseFloat(el.style.getPropertyValue('--d') || 0) * 1000);
+  }), { threshold: 0.12, rootMargin: '0px 0px -6% 0px' });
+  document.querySelectorAll('.rv').forEach((el) => io.observe(el));
+
+  // line icons draw themselves in; figures count up from zero
+  const count = (el) => {
+    const node = [...el.childNodes].find((c) => c.nodeType === 3 && /\d/.test(c.nodeValue));
+    const m = node && node.nodeValue.match(/^(\D*)([\d,]+)(\D*)$/);
+    if (!m) return;
+    const to = parseInt(m[2].replace(/,/g, ''), 10), t0 = performance.now(), dur = 1400;
+    const tick = (now) => {
+      const k = Math.min(1, Math.max(0, (now - t0) / dur)),   // a frame's timestamp can predate t0
+      v = Math.round(to * (1 - Math.pow(1 - k, 3)));
+      node.nodeValue = m[1] + v.toLocaleString('en-IN') + m[3];
+      if (k < 1) requestAnimationFrame(tick); else node.nodeValue = m[1] + m[2] + m[3];
+    };
+    node.nodeValue = m[1] + '0' + m[3]; requestAnimationFrame(tick);
+  };
+  const io2 = new IntersectionObserver((entries) => entries.forEach((en) => {
+    if (!en.isIntersecting && en.boundingClientRect.top > 0) return;
+    io2.unobserve(en.target);
+    if (en.target.tagName.toLowerCase() === 'svg') en.target.classList.add('is-in'); else count(en.target);
+  }), { threshold: 0.6 });
+  document.querySelectorAll('.net__ico, .net__i').forEach((svg) => {
+    svg.querySelectorAll('*').forEach((part) => part.setAttribute('pathLength', '1'));
+    svg.classList.add('ico-draw'); io2.observe(svg);
+  });
+  document.querySelectorAll('.kf__num, .net__num, .net__goals b, .backed__stat .n, .spec__num').forEach((el) => io2.observe(el));
+}

@@ -614,3 +614,48 @@ body.drive-on .drive__hint { animation: driveHint 1.8s ease-in-out infinite; }
   .form { grid-template-columns: 1fr; }
   .footer__top { grid-template-columns: 1fr; }
 }
+
+/* ===== Loading screen: animated logo ===== */
+html.is-loading, html.is-loading body { overflow: hidden; }
+.loader { position: fixed; inset: 0; z-index: 9999; display: grid; place-items: center; background: #fff; --p: 0; transition: opacity .6s ease, visibility 0s linear .6s; }
+.loader.is-out { opacity: 0; visibility: hidden; pointer-events: none; }
+.loader.is-out .loader__logo { transform: scale(1.06); }
+.loader__logo { position: relative; width: min(440px, 76vw); aspect-ratio: 3 / 1; transition: transform .6s cubic-bezier(.3,0,.2,1); }
+/* every piece is the same logo image, cut to one part of it */
+.loader__logo i { position: absolute; inset: 0; background: url(assets/logos/zero-drive-logo.png) center / 100% 100% no-repeat; }
+.loader__mark { clip-path: inset(0 79.5% 0 0); transform-origin: 11% 50%; animation: ldStrike .55s cubic-bezier(.2,1.5,.4,1) both, ldPulse 1.5s ease-in-out .7s infinite; }
+.loader__bar  { clip-path: inset(0 76% 0 20.5%); animation: ldBar .4s cubic-bezier(.3,0,.2,1) .4s both; }
+.loader__word { clip-path: inset(0 0 44% 24%); animation: ldWord .6s cubic-bezier(.3,0,.2,1) .6s both; }
+.loader__line { clip-path: inset(56% calc((1 - var(--p)) * 76%) 37.5% 24%); transition: clip-path .35s ease-out; }
+.loader__tag  { clip-path: inset(62.5% 0 0 24%); animation: ldTag .5s ease-out 1.05s both; }
+@keyframes ldStrike { from { opacity: 0; transform: translate(9%, -42%) scale(.7); } 60% { opacity: 1; } to { opacity: 1; transform: none; } }
+@keyframes ldPulse { 0%, 100% { filter: drop-shadow(0 0 0 rgba(37,99,255,0)); } 50% { filter: drop-shadow(0 0 10px rgba(37,99,255,.55)) brightness(1.12); } }
+@keyframes ldBar { from { clip-path: inset(50% 76% 50% 20.5%); } to { clip-path: inset(0 76% 0 20.5%); } }
+@keyframes ldWord { from { clip-path: inset(0 76% 44% 24%); transform: translateX(-3%); } to { clip-path: inset(0 0 44% 24%); transform: none; } }
+@keyframes ldTag { from { opacity: 0; transform: translateY(8%); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .loader__logo i { animation: none !important; } }
+
+/* line icons in the operator-training steps and goals */
+.net__ico { display: block; width: 40px; height: 40px; color: var(--zd-navy); }
+.net__steps li { position: relative; }
+.net__steps .net__ico { position: absolute; top: clamp(20px,2.2vw,32px); right: clamp(16px,2vw,30px); padding: 9px; width: 52px; height: 52px; border-radius: 50%; background: rgba(46,196,220,.14); transition: background .3s ease, color .3s ease; }
+.net__steps li:hover .net__ico { background: var(--accent); }
+.net__goals .net__ico { width: 34px; height: 34px; margin-bottom: 14px; color: #0b6f80; }
+.net__ico--badge { width: 60px; height: 60px; padding: 12px; margin-bottom: 26px; border-radius: 50%; background: rgba(46,196,220,.14); }
+.net__i { display: inline-block; width: 20px; height: 20px; margin-right: 12px; vertical-align: -4px; color: #0b6f80; flex: none; }
+.net__tr span:last-child .net__dot { display: inline-block; width: 8px; height: 8px; margin-right: 10px; border-radius: 50%; vertical-align: 1px; }
+.net__dot.is-build { background: #e8a13a; box-shadow: 0 0 0 4px rgba(232,161,58,.2); animation: netDot 2s ease-in-out infinite; }
+.net__dot.is-survey { border: 1.5px solid var(--zd-slate); }
+@keyframes netDot { 50% { box-shadow: 0 0 0 7px rgba(232,161,58,0); } }
+@media (prefers-reduced-motion: reduce) { .net__dot.is-build { animation: none; } }
+
+/* ===== Scroll reveals for the sections after the hero (classes are added by script.js) ===== */
+.rv { opacity: 0; transition: opacity .8s cubic-bezier(.2,.7,.2,1) var(--d, 0s), transform 1s cubic-bezier(.2,.7,.2,1) var(--d, 0s), clip-path 1s cubic-bezier(.2,.7,.2,1) var(--d, 0s) !important; will-change: opacity, transform; }
+.rv--up    { transform: translateY(30px); }
+.rv--left  { transform: translateX(-26px); }
+.rv--row   { transform: translateX(-18px); }
+.rv--scale { transform: translateY(18px) scale(.95); }
+.rv--rise  { transform: translateY(44px); }      /* headings travel further. No clip-path here: a fully clipped element never counts as on screen, so it would never be revealed */
+.rv.is-in  { opacity: 1; transform: none; }
+.ico-draw * { stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset 1.1s cubic-bezier(.4,0,.2,1) .15s; }
+.ico-draw.is-in * { stroke-dashoffset: 0; }
