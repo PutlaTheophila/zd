@@ -1,40 +1,15 @@
-// ===== Hero style switch (dark cinematic <-> light fleet) =====
-const heroSwitch = document.getElementById('heroSwitch');
-const heroSwitchLabel = document.getElementById('heroSwitchLabel');
-const applyHeroMode = (mode) => {
-  const light = mode === 'light';
-  document.body.classList.toggle('hero-light-on', light);
-  heroSwitch.setAttribute('aria-pressed', String(light));
-  heroSwitchLabel.textContent = light ? 'Light hero' : 'Dark hero';
-};
-applyHeroMode(localStorage.getItem('zd-hero') || 'dark');
-heroSwitch.addEventListener('click', () => {
-  const light = !document.body.classList.contains('hero-light-on');
-  localStorage.setItem('zd-hero', light ? 'light' : 'dark');
-  applyHeroMode(light ? 'light' : 'dark');
-});
-
-// ===== Header scroll state =====
+// ===== Header scroll state (frost the bar after the hero) =====
 const header = document.getElementById('header');
-// Flip to solid white only once the dark hero is mostly out of view
-const onScroll = () => header.classList.toggle('scrolled', window.scrollY > window.innerHeight * 0.82);
+const onScroll = () => header.classList.toggle('scrolled', window.scrollY > 40);
 onScroll();
 window.addEventListener('scroll', onScroll, { passive: true });
 
-// ===== Get Started dropdown (click for touch, hover via CSS) =====
-const gsd = document.getElementById('gsd');
-document.getElementById('gsdBtn').addEventListener('click', (e) => {
-  e.stopPropagation();
-  gsd.classList.toggle('open');
-});
-document.addEventListener('click', () => gsd.classList.remove('open'));
-
-// Mobile menu toggle -> jump to demo (simple)
+// Mobile menu toggle -> jump to contact (simple)
 document.getElementById('menuToggle').addEventListener('click', () => {
-  document.getElementById('demo').scrollIntoView({ behavior: 'smooth' });
+  document.getElementById('contact').scrollIntoView({ behavior: 'smooth' });
 });
 
-// ===== Leaders marquee (real SDG clientele) =====
+// ===== Leaders marquee (Shri Dinesh Group clientele) =====
 const leaders = [
   { name: 'Castrol', logo: 'assets/logos/castrol.png' },
   { name: 'Reliance Industries', logo: 'assets/logos/reliance.png' },
@@ -58,20 +33,11 @@ const leaders = [
   { name: 'IG Petrochemicals', logo: 'assets/logos/ig-petrochemicals.png' }
 ];
 const track = document.getElementById('leadersTrack');
-const buildLeader = (item) => {
-  if (typeof item === 'object' && item.logo) {
-    return `
-  <div class="leader leader--logo" title="${item.name}">
+const buildLeader = (item) => `
+  <div class="leader" title="${item.name}">
     <img src="${item.logo}" alt="${item.name}">
   </div>`;
-  }
-  return `
-  <div class="leader leader--text">
-    <span class="leader__name">${item}</span>
-  </div>`;
-};
-// duplicate for seamless loop
-track.innerHTML = [...leaders, ...leaders].map(buildLeader).join('');
+track.innerHTML = leaders.map(buildLeader).join('');
 
 // ===== Country codes for phone select =====
 const countries = [
@@ -82,7 +48,7 @@ const countries = [
 const cs = document.getElementById('countrySelect');
 cs.innerHTML = countries.map(([c,d],i) => `<option value="${d}" ${i===0?'selected':''}>${c} ${d}</option>`).join('');
 
-// ===== Demo form =====
+// ===== Quote form =====
 const form = document.getElementById('demoForm');
 const ok = document.getElementById('formOk');
 form.addEventListener('submit', (e) => {
@@ -94,20 +60,13 @@ form.addEventListener('submit', (e) => {
   setTimeout(() => ok.classList.remove('show'), 6000);
 });
 
-// ===== Cookie banner =====
-const cookie = document.getElementById('cookie');
-if (localStorage.getItem('madar-cookie')) cookie.classList.add('hide');
-const closeCookie = (v) => { localStorage.setItem('madar-cookie', v); cookie.classList.add('hide'); };
-document.getElementById('cookieAccept').addEventListener('click', () => closeCookie('accept'));
-document.getElementById('cookieDeny').addEventListener('click', () => closeCookie('deny'));
-
 // ===== Reveal on scroll =====
 const io = new IntersectionObserver((entries) => {
   entries.forEach((en) => {
     if (en.isIntersecting) { en.target.style.opacity = 1; en.target.style.transform = 'none'; io.unobserve(en.target); }
   });
 }, { threshold: 0.12 });
-document.querySelectorAll('.card, .cs__card, .kf__grid > div, .intro__grid > *').forEach((el) => {
+document.querySelectorAll('.card, .role, .kf__grid > div, .backed__stat, .intro__grid > *').forEach((el) => {
   el.style.opacity = 0; el.style.transform = 'translateY(24px)';
   el.style.transition = 'opacity .7s ease, transform .7s ease';
   io.observe(el);
