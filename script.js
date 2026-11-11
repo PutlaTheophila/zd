@@ -4,10 +4,31 @@ const onScroll = () => header.classList.toggle('scrolled', window.scrollY > 40);
 onScroll();
 window.addEventListener('scroll', onScroll, { passive: true });
 
-// Mobile menu toggle -> jump to contact (simple)
-document.getElementById('menuToggle').addEventListener('click', () => {
-  document.getElementById('contact').scrollIntoView({ behavior: 'smooth' });
-});
+// ===== Mobile menu: the button opens the nav as a sheet under the header =====
+const menuBtn = document.getElementById('menuToggle');
+const setMenu = (open) => {
+  header.classList.toggle('menu-open', open);
+  menuBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  menuBtn.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+};
+setMenu(false);
+menuBtn.addEventListener('click', (e) => { e.stopPropagation(); setMenu(!header.classList.contains('menu-open')); });
+header.querySelectorAll('.header__nav a').forEach((a) => a.addEventListener('click', () => setMenu(false)));   // picking a section closes it
+document.addEventListener('click', (e) => { if (!header.contains(e.target)) setMenu(false); });               // so does tapping elsewhere
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') setMenu(false); });
+window.addEventListener('resize', () => { if (window.innerWidth > 860) setMenu(false); });
+
+// ===== Nav shows which section is on screen =====
+if ('IntersectionObserver' in window) {
+  const navLinks = [...header.querySelectorAll('.header__nav a')];
+  const spy = new IntersectionObserver((entries) => entries.forEach((en) => {
+    if (!en.isIntersecting) return;
+    navLinks.forEach((a) => a.classList.toggle('is-active', a.getAttribute('href') === '#' + en.target.id));
+  }), { rootMargin: '-45% 0px -50% 0px' });                       // a section counts once it crosses the middle of the screen
+  navLinks.forEach((a) => { const sec = document.querySelector(a.getAttribute('href')); if (sec) spy.observe(sec); });
+  const hero = document.getElementById('drive');
+  if (hero) new IntersectionObserver((es) => { if (es[0].isIntersecting) navLinks.forEach((a) => a.classList.remove('is-active')); }, { rootMargin: '-45% 0px -50% 0px' }).observe(hero);
+}
 
 // ===== Leaders marquee (Shri Dinesh Group clientele) =====
 const leaders = [

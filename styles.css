@@ -600,7 +600,17 @@ body.drive-on .drive__hint { animation: driveHint 1.8s ease-in-out infinite; }
   .cards--3 { grid-template-columns: repeat(2, 1fr); }
 }
 @media (max-width: 860px) {
-  .header__nav { display:none; }
+  /* phones: the nav pill becomes a drop-down sheet under the header, opened by the menu button */
+  .header__nav { position: absolute; top: calc(100% + 8px); left: 12px; right: 12px; flex-direction: column; gap: 0; padding: 8px; border-radius: 18px;
+    background: #fff; border: 1px solid rgba(14,28,51,.08); box-shadow: 0 18px 44px rgba(14,28,51,.18);
+    opacity: 0; visibility: hidden; transform: translateY(-8px); transition: opacity .25s ease, transform .25s ease, visibility 0s linear .25s; }
+  .header.menu-open .header__nav { opacity: 1; visibility: visible; transform: none; transition: opacity .25s ease, transform .25s ease; }
+  .header__nav a { padding: 14px 16px; font-size: 16px; border-radius: 12px; }
+  .header__nav a + a { border-top: 1px solid rgba(14,28,51,.06); }
+  .header.menu-open { background: rgba(255,255,255,.96); }
+  .header.menu-open .menu-toggle span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+  .header.menu-open .menu-toggle span:nth-child(2) { opacity: 0; }
+  .header.menu-open .menu-toggle span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
   .menu-toggle { display:block; }
   .header__right { gap: 6px; } .header__right .btn { padding: 9px 14px; font-size: 13px; white-space: nowrap; } .header__right .btn__arrow { display: none; }
   .header__logo img { height: 38px; }
@@ -667,3 +677,29 @@ body.drive-ground .drive__split-left, body.drive-ground .drive__split-right { op
 .drive__panel--2::before, .drive__panel--3::before { content: ''; position: absolute; z-index: -1; left: calc(-1 * var(--pad)); right: calc(-1 * var(--pad)); top: -90px; bottom: -12vh;
   background: linear-gradient(180deg, rgba(10,42,14,0) 0%, rgba(10,42,14,.66) 30%, rgba(8,34,12,.82) 100%); pointer-events: none; }
 .drive__panel--2, .drive__panel--3 { text-shadow: 0 1px 10px rgba(6,28,10,.45); }
+
+/* ===== Header, refined: no pill around the nav, small spaced capitals, a hairline accent on hover, a quiet navy button ===== */
+.header__inner { height: 76px; }
+.header__logo img { height: 40px; }
+.sdg-lockup { font-size: 11.5px; letter-spacing: .02em; }
+.header__nav { gap: 2px; padding: 0; background: none; border: 0; border-radius: 0; }
+.header__nav a { position: relative; padding: 10px 15px; border-radius: 0; background: none; font-size: 12.5px; letter-spacing: .1em; text-transform: uppercase; color: rgba(14,28,51,.68); transition: color .25s ease; }
+.header__nav a::after { content: ''; position: absolute; left: 15px; right: 15px; bottom: 3px; height: 1px; background: var(--accent); transform: scaleX(0); transform-origin: left; transition: transform .4s cubic-bezier(.2,.7,.2,1); }
+.header__nav a:hover, .header__nav a.is-active { color: var(--zd-navy); background: none; }
+.header__nav a:hover::after, .header__nav a.is-active::after { transform: scaleX(1); }
+.header__right .btn { padding: 11px 20px; font-size: 13px; letter-spacing: .03em; background: var(--zd-navy); color: #fff; box-shadow: none; }
+.header__right .btn:hover { background: var(--accent); color: var(--zd-navy); }
+.header.scrolled { background: rgba(255,255,255,.8); backdrop-filter: blur(18px) saturate(1.4); -webkit-backdrop-filter: blur(18px) saturate(1.4); border-bottom-color: rgba(14,28,51,.07); box-shadow: 0 10px 30px rgba(14,28,51,.05); }
+.menu-toggle span { width: 22px; height: 1.5px; }
+@media (max-width: 860px) {
+  .header__inner { height: 68px; }
+  .header__logo img { height: 36px; }
+  .header__nav { padding: 6px 18px; border-radius: 16px; background: #fff; border: 1px solid rgba(14,28,51,.07); box-shadow: 0 20px 50px rgba(14,28,51,.14); }
+  .header__nav a { padding: 16px 0; font-size: 13px; }
+  .header__nav a::after { display: none; }
+  .header__nav a + a { border-top: 1px solid rgba(14,28,51,.07); }
+  .header__nav a.is-active { color: #0b6f80; }
+  .header__right .btn { padding: 9px 15px; font-size: 12.5px; }
+  .header.menu-open .menu-toggle span:nth-child(1) { transform: translateY(6.5px) rotate(45deg); }
+  .header.menu-open .menu-toggle span:nth-child(3) { transform: translateY(-6.5px) rotate(-45deg); }
+}
