@@ -149,9 +149,9 @@ function init() {
   // road surface texture; either edge line can be left off where two carriageways merge
   const roadMat = (top, bottom, dashes = true) => {
     const tex = canvasTex(512, 512, (g, w, h) => {
-      g.fillStyle = '#16264a'; g.fillRect(0, 0, w, h);
-      for (let i = 0; i < 5000; i++) {
-        g.fillStyle = Math.random() > 0.5 ? `rgba(255,255,255,${Math.random() * 0.04})` : `rgba(0,0,0,${Math.random() * 0.08})`;
+      g.fillStyle = '#17181b'; g.fillRect(0, 0, w, h);          // black asphalt
+      for (let i = 0; i < 9000; i++) {                           // aggregate: light and dark flecks in the tarmac
+        g.fillStyle = Math.random() > 0.5 ? `rgba(255,255,255,${Math.random() * 0.07})` : `rgba(0,0,0,${Math.random() * 0.25})`;
         g.fillRect(Math.random() * w, Math.random() * h, 2, 2);
       }
       g.fillStyle = 'rgba(255,255,255,.8)';
@@ -246,6 +246,15 @@ function init() {
   // Sits under the dark hero ground and is revealed as that fades while the camera lifts:
   // a detailed tiling grass texture, a large-scale tint layer to break up the tiling,
   // a gravel shoulder along the road, and groves of trees with soft ground shadows.
+  // Copy painted on the grass beside the straight after the bend (wide screens only; phones keep the HTML cards).
+  // From above, screen-left is +x and the truck drives towards -z, so later blocks sit at more negative z.
+  const GT = { rx: S1 + RR, w: 24, near: 9, head: { z: -64, h: 22 }, items: [-104, -138, -172, -206], itemH: 10 };
+  const textClear = (x, z, m) => {                                                   // keeps trees and bushes off the lettering
+    const dx = x - GT.rx;
+    if (dx > GT.near - m && dx < GT.near + GT.w + m && Math.abs(z - GT.head.z) < GT.head.h / 2 + m) return false;
+    if (-dx > GT.near - m && -dx < GT.near + GT.w + m) for (const iz of GT.items) if (Math.abs(z - iz) < GT.itemH / 2 + m) return false;
+    return true;
+  };
   const land = new THREE.Group(); land.visible = false; scene.add(land);
   const trees = new THREE.Group(); trees.visible = false; land.add(trees);   // only shown from above (see frame())
   {
@@ -318,7 +327,7 @@ function init() {
     for (let i = 0; i < 9000 && spots.length < (LITE ? 170 : 560); i++) {
       const x = 90 + rnd() * 380, z = -760 + rnd() * 850;
       if (vnoise(x / 46, z / 46) < 0.47) continue;                     // groves, with open meadow between
-      if (!offRoad(x, z, 13)) continue;
+      if (!offRoad(x, z, 13) || !textClear(x, z, 5)) continue;
       spots.push({ x, z, r: 1.7 + rnd() * 3.1 });
     }
 
@@ -380,7 +389,7 @@ function init() {
     for (let i = 0, made = 0; i < BUSHES * 6 && made < BUSHES; i++) {                 // undergrowth around the groves
       const t = spots[(rnd() * spots.length) | 0], a = rnd() * PI * 2, d = t.r * (1.1 + rnd() * 2.4), r = 0.45 + rnd() * 0.75;
       const x = t.x + Math.cos(a) * d, z = t.z + Math.sin(a) * d;
-      if (!offRoad(x, z, 9)) continue;
+      if (!offRoad(x, z, 9) || !textClear(x, z, 1.5)) continue;
       lobe(x, r * 0.6, z, r, leaf[(rnd() * leaf.length) | 0], 0.7); made++;
     }
     blobs.count = nb; trees.add(blobs);
@@ -896,36 +905,43 @@ function init() {
       const a = hash(xi, yi), b = hash(xi + 1, yi), c = hash(xi, yi + 1), d = hash(xi + 1, yi + 1); return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v; };
     const lowpoly = (color, o = {}) => std(color, { roughness: 0.85, metalness: 0, flatShading: true, envMapIntensity: 0.35, ...o });
 
-    // open ocean: a shader of drifting swell, fine ripples, sun glints and scattered whitecaps
+    // open ocean, lit like an aerial photograph: a wave height field gives a surface normal, and the colour comes from
+    // deep-water absorption, sky reflection at grazing angles, sun glitter on the facets and sparse foam on the highest crests
     const seaMat = new THREE.ShaderMaterial({
-      uniforms: { uTime: { value: 0 } }, fog: false,
+      uniforms: { uTime: { value: 0 }, uC: { value: new THREE.Vector2(HUB.x - 70, HUB.z + 40) } }, fog: false,
       vertexShader: 'varying vec2 vP; void main(){ vec4 w = modelMatrix * vec4(position, 1.0); vP = w.xz; gl_Position = projectionMatrix * viewMatrix * w; }',
       fragmentShader: `
-        uniform float uTime; varying vec2 vP;
+        uniform float uTime; uniform vec2 uC; varying vec2 vP;
         float h21(vec2 p){ p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
         float vn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
           return mix(mix(h21(i), h21(i + vec2(1, 0)), f.x), mix(h21(i + vec2(0, 1)), h21(i + vec2(1, 1)), f.x), f.y); }
-        float fbm(vec2 p){ float a = 0.5, s = 0.0; for (int i = 0; i < 5; i++){ s += a * vn(p); p = p * 2.03 + vec2(17.3, 9.1); a *= 0.5; } return s; }
+        float fbm(vec2 p){ float a = 0.5, s = 0.0; for (int i = 0; i < 4; i++){ s += a * vn(p); p = mat2(1.6, 1.2, -1.2, 1.6) * p + vec2(17.3, 9.1); a *= 0.5; } return s; }
+        // three wave trains: a long swell, a shorter sea crossing it, and fine wind ripples; each is noise stretched along its crests
+        float height(vec2 p, float t){
+          vec2 w1 = vec2(p.x * 0.8 + p.y * 0.6, (p.y * 0.8 - p.x * 0.6) * 2.6);
+          float a = fbm(w1 * 0.075 + vec2(t * 0.07, t * 0.24));
+          vec2 w2 = vec2(p.x * 0.95 - p.y * 0.3, (p.y * 0.95 + p.x * 0.3) * 2.2);
+          float b = fbm(w2 * 0.19 + vec2(-t * 0.13, t * 0.42) + a * 0.9);
+          float c = fbm(p * 0.55 + vec2(t * 0.45, -t * 0.38) + b * 0.7);
+          return a + b * 0.5 + c * 0.24;
+        }
         void main(){
-          float t = uTime;
-          vec2 p = vP * 0.035;
-          float swell = fbm(p + vec2(t * 0.035, t * 0.02));                              // broad, slow patches of lighter and darker water
-          float chop  = fbm(p * 3.1 + vec2(-t * 0.09, t * 0.06));                        // mid-scale waves
-          float rip   = fbm(p * 11.0 + vec2(t * 0.22, -t * 0.17) + chop * 1.5);          // fine surface ripples
-          // rolling wave crests: noise stretched across the wind so it reads as long, moving ripples from above
-          vec2 q = vP * 0.09;
-          float wav = fbm(vec2(q.x * 0.55 + q.y * 0.3, q.y * 1.9 - q.x * 0.35) + vec2(t * 0.34, -t * 0.26) + chop * 0.8);
-          float wav2 = fbm(vec2(q.x * 1.5 - q.y * 0.4, q.y * 4.6 + q.x * 0.5) * 1.7 + vec2(-t * 0.5, t * 0.42));
-          vec3 deep = vec3(0.012, 0.07, 0.24), mid = vec3(0.035, 0.19, 0.5), lit = vec3(0.16, 0.44, 0.82);
-          vec3 col = mix(deep, mid, smoothstep(0.25, 0.75, swell * 0.65 + chop * 0.35));
-          col = mix(col, lit, smoothstep(0.46, 0.7, wav) * 0.8);                         // lit faces of the swell
-          col = mix(col, deep * 0.8, smoothstep(0.52, 0.3, wav) * 0.45);                 // troughs fall darker
-          col = mix(col, vec3(0.5, 0.74, 1.0), smoothstep(0.55, 0.8, wav2) * smoothstep(0.4, 0.62, wav) * 0.6);   // fine ripples riding the crests
-          col = mix(col, lit, smoothstep(0.55, 0.88, rip) * 0.35);
-          float glint = pow(smoothstep(0.6, 0.9, fbm(p * 26.0 + vec2(t * 0.6, t * 0.4) + rip * 2.0)), 3.0);
-          col += vec3(0.6, 0.8, 1.0) * glint * 0.5;                                      // sun sparkle
-          float cap = smoothstep(0.66, 0.76, fbm(p * 7.0 + vec2(t * 0.14, 0.0))) * smoothstep(0.55, 0.75, wav);
-          col = mix(col, vec3(0.94, 0.98, 1.0), cap * 0.9);                              // whitecaps break on the crests
+          float t = uTime; vec2 p = vP; const float e = 0.45;
+          float h0 = height(p, t), hx = height(p + vec2(e, 0.0), t), hz = height(p + vec2(0.0, e), t);
+          vec3 N = normalize(vec3(-(hx - h0) / e * 2.7, 1.0, -(hz - h0) / e * 2.7));
+          vec3 L = normalize(vec3(-0.35, 0.8, 0.45)), V = normalize(vec3(0.0, 0.85, -0.53)), H = normalize(L + V);
+          float big = fbm(p * 0.0055 + vec2(t * 0.004, 0.0));                                // broad lighter and darker masses of water
+          vec3 deep = vec3(0.004, 0.028, 0.12), body = vec3(0.01, 0.1, 0.4), bright = vec3(0.04, 0.27, 0.7);
+          vec3 col = mix(deep, body, smoothstep(0.3, 0.62, big));
+          col = mix(col, bright, smoothstep(0.62, 1.0, dot(N, L)) * (0.25 + 0.5 * big));     // faces turned to the sun
+          col *= 0.62 + 0.62 * smoothstep(0.55, 1.15, h0);                                   // troughs sit darker than crests
+          float fres = pow(1.0 - clamp(dot(N, V), 0.0, 1.0), 3.0);
+          col = mix(col, vec3(0.2, 0.46, 0.86), fres * 0.4);                               // sky reflected at grazing angles
+          float nh = clamp(dot(N, H), 0.0, 1.0);
+          col += vec3(0.72, 0.86, 1.0) * (pow(nh, 70.0) * 0.07 + pow(nh, 1400.0) * 0.55);       // soft sheen plus pin-point sun glitter
+          float crest = smoothstep(1.0, 1.13, h0), fleck = smoothstep(0.55, 0.78, fbm(p * 1.9 + vec2(t * 0.3, 0.0)));
+          col = mix(col, vec3(0.88, 0.94, 1.0), crest * fleck * 0.9);                        // foam only on the highest crests
+          col *= mix(1.0, 0.5, smoothstep(240.0, 900.0, length(vP - uC)));                   // the frame falls off into darker water
           gl_FragColor = vec4(col, 1.0);
           #include <colorspace_fragment>
         }`,
@@ -1058,11 +1074,14 @@ function init() {
     pinGeo.translate(0, 0, -0.35);
     const gloss = (color) => new THREE.MeshPhysicalMaterial({ color, roughness: 0.16, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.05, envMapIntensity: 1.3, transparent: true, opacity: 0.94 });
     const PIN_MAT = { hub: gloss(0x0e1c33), city: gloss(0x18b6d6), charge: gloss(0xe5383b) };
+    // which corridors (by index in CORRIDORS) each name belongs to: a name shows only while one of its corridors is the
+    // one being traced, so the map carries two or three names at a time instead of ten. Mumbai, the hub, always shows.
+    const LABEL_ON = { Mumbai: null, Pune: [0, 2], Ahmedabad: [1], Nimbahera: [2], Mundra: [3], Morbi: [3], Chennai: [4], Krishnapatnam: [5], Pithampur: [6], Sangurli: [6] };
     const pin = (name, lonlat, kind, side, text) => {
       const [x, z] = geo(lonlat), k = kind === 'hub' ? 1.5 : 1.15;
       const m = new THREE.Mesh(pinGeo, PIN_MAT[kind]); m.position.set(x, 3.4, z); m.scale.setScalar(k); m.rotation.x = 0.5; m.castShadow = true; mapWorld.add(m);
       const el = document.createElement('span'); el.className = `drive__label drive__label--${kind} drive__label--${side}`; el.textContent = text || name; labelBox.appendChild(el);
-      mapLabels.push({ el, v: new THREE.Vector3(x, 3.4 + 5.2 * k * Math.cos(0.5), z + 5.2 * k * Math.sin(0.5)) });   // label hangs off the pin's head
+      mapLabels.push({ el, o: 0, on: LABEL_ON[name], v: new THREE.Vector3(x, 3.4 + 5.2 * k * Math.cos(0.5), z + 5.2 * k * Math.sin(0.5)) });   // label hangs off the pin's head
     };
     pin('Mumbai', PLACE.Mumbai, 'hub', 'l'); pin('Pune', PLACE.Pune, 'city', 'r'); pin('Ahmedabad', PLACE.Ahmedabad, 'city', 'r');
     pin('Mundra', PLACE.Mundra, 'city', 'l', LITE ? 'Mundra' : 'Mundra · Adani Ports'); pin('Nimbahera', PLACE.Nimbahera, 'city', 't'); pin('Pithampur', PLACE.Pithampur, 'city', 'r');
@@ -1126,6 +1145,201 @@ function init() {
       redraw = true;
     }).catch((err) => console.warn('[truck3d] India map data failed to load:', err)).finally(() => assets.done());
   }
+
+  // ---------- ground lettering: the stage-4 copy, read from the page and painted flat on the grass ----------
+  const groundText = new THREE.Group(); groundText.visible = false; land.add(groundText);
+  const gtMats = [];
+  {
+    const PX = 50, BODY = "'Suisse Intl', Arial, sans-serif", HEAD = "Oxanium, 'Suisse Intl', Arial, sans-serif";   // canvas pixels per metre
+    const txt = (el) => (el ? el.textContent.replace(/\s+/g, ' ').trim() : '');
+    // draws words left to right, wrapping at maxW; each word carries its own fill so a heading can change tone part-way
+    const flow = (g, words, x, y, maxW, lh) => {
+      let cx = x; const sp = g.measureText(' ').width;
+      words.forEach(([word, fill]) => {
+        const ww = g.measureText(word).width;
+        if (cx > x && cx + ww > x + maxW) { cx = x; y += lh; }
+        g.fillStyle = fill; g.fillText(word, cx, y); cx += ww + sp;
+      });
+      return y + lh;
+    };
+    const split = (str, fill) => str.split(' ').filter(Boolean).map((w) => [w, fill]);
+    const WHITE = 'rgba(255,255,255,.97)', SOFT = 'rgba(255,255,255,.72)', PALE = 'rgba(214,246,255,.95)';
+    const paint = (hM, draw) => {
+      const tex = canvasTex(GT.w * PX, hM * PX, (g, w, h) => {
+        g.clearRect(0, 0, w, h); g.textBaseline = 'top';
+        g.shadowColor = 'rgba(8,36,10,.6)'; g.shadowBlur = 16; g.shadowOffsetX = 3; g.shadowOffsetY = 5;      // sits into the grass, stays legible
+        draw(g, w, h);
+        // worn into the turf: thousands of blade-sized nicks are cut out of the paint, so the grass shows through the letters
+        g.shadowColor = 'transparent'; g.globalCompositeOperation = 'destination-out'; g.lineCap = 'round';
+        for (let n = 0, many = Math.floor(w * h / 55); n < many; n++) {
+          const x = Math.random() * w, y = Math.random() * h, a = Math.random() * PI, len = 5 + Math.random() * 13;
+          g.globalAlpha = 0.3 + Math.random() * 0.6; g.lineWidth = 0.8 + Math.random() * 1.8;
+          g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * len, y + Math.sin(a) * len); g.stroke();
+        }
+        g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+      });
+      tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, toneMapped: false, fog: false, opacity: 0 }); gtMats.push(mat);
+      const geo = new THREE.PlaneGeometry(GT.w, hM); geo.rotateX(-PI / 2); geo.rotateY(PI);              // flat on the ground, reading upright from the camera
+      const m = new THREE.Mesh(geo, mat); m.renderOrder = 2; groundText.add(m); return m;
+    };
+    const build = () => {
+      const left = sceneEl.querySelector('.drive__split-left'), title = left && left.querySelector('.drive__split-title');
+      if (!left || !title) return;
+      const strong = txt(title.querySelector('span')), first = txt(title).replace(strong, '').trim();
+      const head = paint(GT.head.h, (g, w) => {
+        g.font = `600 ${0.72 * PX}px ${BODY}`; g.fillStyle = PALE; g.fillRect(0, 0.62 * PX, 2.2 * PX, 0.1 * PX);
+        g.letterSpacing = '6px'; g.fillText(txt(left.querySelector('.drive__eyebrow')).toUpperCase(), 3.1 * PX, 0.3 * PX); g.letterSpacing = '0px';
+        g.font = `800 ${2.5 * PX}px ${HEAD}`;
+        let y = flow(g, [...split(first.toUpperCase(), SOFT), ...split(strong.toUpperCase(), WHITE)], 0, 2.2 * PX, w, 2.55 * PX);
+        g.font = `400 ${1.02 * PX}px ${BODY}`;
+        flow(g, split(txt(left.querySelector('.drive__split-lead')), WHITE), 0, y + 0.7 * PX, w * 0.94, 1.55 * PX);
+      });
+      head.userData = { side: 1, z: GT.head.z };
+      sceneEl.querySelectorAll('.drive__item').forEach((it, n) => {
+        if (n >= GT.items.length) return;
+        const m = paint(GT.itemH, (g, w) => {
+          g.font = `600 ${0.8 * PX}px ${BODY}`; g.fillStyle = PALE; g.fillText(txt(it.querySelector('.role__tag')), 0, 0.2 * PX);
+          g.font = `800 ${2.1 * PX}px ${HEAD}`; g.fillStyle = WHITE; g.fillText(txt(it.querySelector('h4')).toUpperCase(), 0, 1.7 * PX);
+          g.font = `400 ${1.02 * PX}px ${BODY}`;
+          flow(g, split(txt(it.querySelector('p')), WHITE), 0, 4.6 * PX, w * 0.9, 1.55 * PX);
+        });
+        m.userData = { side: -1, z: GT.items[n] };
+      });
+      groundText.userData.ready = true; redraw = true;
+    };
+    const fontsIn = document.fonts ? Promise.all([document.fonts.load(`800 100px Oxanium`), document.fonts.load(`400 50px 'Suisse Intl'`), document.fonts.load(`600 50px 'Suisse Intl'`)]) : Promise.resolve();
+    fontsIn.catch(() => {}).then(build);                                             // lettering is drawn once its typefaces are in
+  }
+
+  // ---------- birds: two flocks crossing under the camera during the top-down drive ----------
+  const birds = new THREE.Group(); driveWorld.add(birds);
+  const birdMat = new THREE.MeshStandardMaterial({ color: 0xf7f8f5, roughness: 0.75, side: THREE.DoubleSide, transparent: true });
+  const birdTip = new THREE.MeshStandardMaterial({ color: 0x2b3038, roughness: 0.8, side: THREE.DoubleSide, transparent: true });
+  const FLOCKS = [];
+  {
+    const wing = new THREE.Shape(); wing.moveTo(0.3, 0); wing.quadraticCurveTo(0.36, 0.62, 0.08, 1.02); wing.lineTo(-0.1, 1.0); wing.quadraticCurveTo(-0.2, 0.55, -0.3, 0); wing.closePath();
+    const tip = new THREE.Shape(); tip.moveTo(0.08, 1.02); tip.quadraticCurveTo(0.02, 1.2, -0.04, 1.34); tip.quadraticCurveTo(-0.1, 1.2, -0.1, 1.0); tip.closePath();
+    const wingGeo = new THREE.ShapeGeometry(wing), tipGeo = new THREE.ShapeGeometry(tip);
+    [wingGeo, tipGeo].forEach((g) => g.rotateX(PI / 2));                             // span runs along +z, chord along x (x is forward)
+    const bodyGeo = new THREE.SphereGeometry(0.2, 10, 8); bodyGeo.scale(2.7, 0.8, 0.85);
+    const tailGeo = new THREE.ConeGeometry(0.16, 0.55, 6); tailGeo.rotateZ(PI / 2); tailGeo.translate(-0.7, 0, 0);
+    const bird = () => {
+      const g = new THREE.Group(); g.add(new THREE.Mesh(bodyGeo, birdMat), new THREE.Mesh(tailGeo, birdMat));
+      const side = (sgn) => { const w = new THREE.Group(); w.add(new THREE.Mesh(wingGeo, birdMat), new THREE.Mesh(tipGeo, birdTip)); w.scale.z = sgn; g.add(w); return w; };
+      g.userData = { l: side(1), r: side(-1), phase: Math.random() * 6.28, rate: 7 + Math.random() * 2 };
+      g.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+      birds.add(g); return g;
+    };
+    // dir is the heading in the x/z plane (from above, screen-left is +x and screen-up is +z); each flock flies a V behind its leader
+    [{ dir: [1, 0.42], y: 30, n: LITE ? 5 : 7, speed: 15, phase: 0, size: 1.5 }, { dir: [-1, 0.22], y: 23, n: LITE ? 3 : 4, speed: 12, phase: 95, size: 1.25 }].forEach((f) => {
+      const len = Math.hypot(f.dir[0], f.dir[1]); f.dx = f.dir[0] / len; f.dz = f.dir[1] / len;
+      f.birds = []; for (let i = 0; i < f.n; i++) { const b = bird(); b.scale.setScalar(f.size); b.rotation.y = Math.atan2(-f.dz, f.dx);
+        const row = Math.ceil(i / 2), sgn = i % 2 ? 1 : -1; b.userData.back = row * 2.9 + Math.random() * 0.8; b.userData.lat = sgn * row * 2.4; f.birds.push(b); }
+      FLOCKS.push(f);
+    });
+  }
+  // Nature ambience for the top-down drive, all synthesised (no audio files): wind that gusts, leaves that rustle harder
+  // with each gust, and a chorus of several birds near and far. Browsers only allow sound after a click, tap or key press,
+  // so it starts on the first one; the button in the corner mutes it and remembers the choice.
+  const song = (() => {
+    const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'drive__sound';
+    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9.5h3l4.5-3.5v12L7 14.5H4z"/><path class="w" d="M15 9.2a4 4 0 0 1 0 5.6M17.6 6.8a7.5 7.5 0 0 1 0 10.4"/><path class="x" d="M15.5 9.5l5 5M20.5 9.5l-5 5"/></svg>';
+    sceneEl.appendChild(btn);
+    let want = true; try { want = localStorage.getItem('zdSound') !== 'off'; } catch (e) { /* storage blocked */ }
+    let ctx = null, master = null, wind = null, leaves = null, birdBus = null, on = false, birdTimer = 0, gustTimer = 0, sleep = 0;
+    const R = Math.random;
+    const paint = () => { btn.classList.toggle('is-muted', !want); btn.setAttribute('aria-label', want ? 'Mute nature sounds' : 'Turn nature sounds on'); btn.title = want ? 'Mute' : 'Sound on'; };
+    const noise = (secs, brown) => {                                                 // looping noise bed: brown for wind, white for leaves
+      const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * secs), ctx.sampleRate), d = buf.getChannelData(0); let last = 0;
+      for (let n = 0; n < d.length; n++) { const w = R() * 2 - 1; if (brown) { last = (last + 0.02 * w) / 1.02; d[n] = last * 3.5; } else d[n] = w; }
+      const src = ctx.createBufferSource(); src.buffer = buf; src.loop = true; src.start(); return src;
+    };
+    const setup = () => {
+      const AC = window.AudioContext || window.webkitAudioContext; ctx = new AC();
+      master = ctx.createGain(); master.gain.value = 0; master.connect(ctx.destination);
+      // wind: low rumble whose brightness and level swell with each gust, plus a thin airy layer above it
+      const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 380; lp.Q.value = 0.7;
+      const wg = ctx.createGain(); wg.gain.value = 0.3; noise(5, true).connect(lp); lp.connect(wg); wg.connect(master);
+      const air = ctx.createBiquadFilter(); air.type = 'bandpass'; air.frequency.value = 1100; air.Q.value = 0.9;
+      const ag = ctx.createGain(); ag.gain.value = 0.012; noise(3.3, false).connect(air); air.connect(ag); ag.connect(master);
+      wind = { lp, wg, ag };
+      // leaves: bright hiss shaped by a fast flutter, so it shimmers rather than hisses; its level follows the gusts
+      const hp = ctx.createBiquadFilter(); hp.type = 'bandpass'; hp.frequency.value = 5200; hp.Q.value = 0.45;
+      const flutter = ctx.createGain(); flutter.gain.value = 0.6; const lfo = ctx.createOscillator(); lfo.frequency.value = 7.3; const depth = ctx.createGain(); depth.gain.value = 0.35;
+      lfo.connect(depth); depth.connect(flutter.gain); lfo.start();
+      const lg = ctx.createGain(); lg.gain.value = 0.03; noise(4.1, false).connect(hp); hp.connect(flutter); flutter.connect(lg); lg.connect(master);
+      leaves = { lg, hp };
+      // birds: dry signal plus a short filtered echo, which reads as open air rather than a room
+      birdBus = ctx.createGain(); birdBus.gain.value = 0.55; birdBus.connect(master);
+      const dl = ctx.createDelay(0.5); dl.delayTime.value = 0.13; const fb = ctx.createGain(); fb.gain.value = 0.24;
+      const damp = ctx.createBiquadFilter(); damp.type = 'lowpass'; damp.frequency.value = 2600; const wet = ctx.createGain(); wet.gain.value = 0.3;
+      birdBus.connect(dl); dl.connect(damp); damp.connect(fb); fb.connect(dl); damp.connect(wet); wet.connect(master);
+    };
+    const unlock = () => {
+      if (!want) return;
+      if (!ctx) { try { setup(); } catch (e) { ctx = null; return; } }
+      sync();
+    };
+    // a gust: wind brightens and rises, the leaves answer a moment later, then both settle back
+    const gust = () => {
+      gustTimer = 0; if (!on || !want || !ctx || document.hidden) return;
+      const g = 0.35 + R() * 0.65, at = ctx.currentTime, rise = 0.5 + R() * 0.7, hold = 1.2 + R() * 2.2;
+      wind.lp.frequency.setTargetAtTime(380 + g * 950, at, rise); wind.wg.gain.setTargetAtTime(0.3 + g * 0.6, at, rise); wind.ag.gain.setTargetAtTime(0.012 + g * 0.05, at, rise);
+      leaves.lg.gain.setTargetAtTime(0.03 + g * 0.22, at + 0.35, rise * 1.1); leaves.hp.frequency.setTargetAtTime(4600 + g * 2200, at + 0.35, rise);
+      const off = at + rise * 2 + hold;
+      wind.lp.frequency.setTargetAtTime(380, off, 1.4); wind.wg.gain.setTargetAtTime(0.3, off, 1.4); wind.ag.gain.setTargetAtTime(0.012, off, 1.4);
+      leaves.lg.gain.setTargetAtTime(0.03, off, 1.1); leaves.hp.frequency.setTargetAtTime(5200, off, 1.2);
+      gustTimer = setTimeout(gust, (rise * 2 + hold + 1.5 + R() * 4.5) * 1000);
+    };
+    // one bird note: a sine with a faint overtone, gliding f0 -> f1 -> f2
+    const note = (at, f0, f1, f2, dur, vol, pan) => {
+      const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, at); g.gain.exponentialRampToValueAtTime(vol, at + dur * 0.22); g.gain.exponentialRampToValueAtTime(0.0001, at + dur);
+      [[1, 1], [2, 0.16]].forEach(([mult, lvl]) => {
+        const o = ctx.createOscillator(), og = ctx.createGain(); og.gain.value = lvl;
+        o.frequency.setValueAtTime(f0 * mult, at); o.frequency.exponentialRampToValueAtTime(f1 * mult, at + dur * 0.5); o.frequency.exponentialRampToValueAtTime(f2 * mult, at + dur);
+        o.connect(og); og.connect(g); o.start(at); o.stop(at + dur + 0.03);
+      });
+      if (ctx.createStereoPanner) { const sp = ctx.createStereoPanner(); sp.pan.value = pan; g.connect(sp); sp.connect(birdBus); } else g.connect(birdBus);
+    };
+    // five birds with their own pitch, place in the stereo field, distance and song shape
+    const VOICES = [
+      { base: 3100, pan: -0.6, vol: 0.5, kind: 'tweet' }, { base: 4300, pan: 0.5, vol: 0.4, kind: 'trill' }, { base: 2300, pan: 0.15, vol: 0.45, kind: 'whistle' },
+      { base: 3700, pan: -0.9, vol: 0.16, kind: 'tweet' }, { base: 5200, pan: 0.85, vol: 0.14, kind: 'trill' }, { base: 1750, pan: -0.25, vol: 0.3, kind: 'coo' },
+    ];
+    const sing = (v, delay) => {
+      const at = ctx.currentTime + 0.03 + delay, f = v.base * (0.94 + R() * 0.12), vol = v.vol * (0.7 + R() * 0.5), pan = Math.max(-1, Math.min(1, v.pan + (R() - 0.5) * 0.3));
+      if (v.kind === 'tweet') { const n = 2 + Math.floor(R() * 4), gap = 0.13 + R() * 0.06; for (let k = 0; k < n; k++) note(at + k * gap, f, f * (1.35 + R() * 0.2), f * 1.1, 0.085, vol, pan); }
+      else if (v.kind === 'trill') { const n = 7 + Math.floor(R() * 9), gap = 0.045 + R() * 0.02; for (let k = 0; k < n; k++) note(at + k * gap, f * 1.15, f * 1.02, f * 1.1, 0.036, vol * (0.6 + 0.4 * Math.sin(k / n * Math.PI)), pan); }
+      else if (v.kind === 'whistle') { note(at, f * 1.5, f * 1.1, f * 0.95, 0.3, vol, pan); note(at + 0.36, f * 1.05, f * 1.3, f * 1.38, 0.14, vol * 0.8, pan); if (R() < 0.5) note(at + 0.56, f * 1.3, f * 1.5, f * 1.2, 0.12, vol * 0.7, pan); }
+      else { note(at, f, f * 1.12, f * 0.96, 0.24, vol, pan); note(at + 0.34, f, f * 1.1, f * 0.93, 0.3, vol * 0.85, pan); }
+    };
+    const chorus = () => {
+      birdTimer = 0; if (!on || !want || !ctx || document.hidden) return;
+      const cluster = R() < 0.3 ? 3 + Math.floor(R() * 3) : 1;                        // now and then several birds answer each other
+      for (let k = 0; k < cluster; k++) sing(VOICES[Math.floor(R() * VOICES.length)], k * (0.12 + R() * 0.35));
+      birdTimer = setTimeout(chorus, (cluster > 1 ? 1400 : 300) + R() * 1500);
+    };
+    function sync() {
+      if (!ctx) return;
+      const audible = on && want && !document.hidden;
+      clearTimeout(sleep);
+      if (audible) {
+        if (ctx.state === 'suspended') ctx.resume();
+        master.gain.setTargetAtTime(0.42, ctx.currentTime, 0.5);
+        if (!birdTimer) birdTimer = setTimeout(chorus, 250);
+        if (!gustTimer) gustTimer = setTimeout(gust, 900);
+      } else {
+        master.gain.setTargetAtTime(0, ctx.currentTime, 0.3);
+        sleep = setTimeout(() => { if (ctx.state === 'running') ctx.suspend(); }, 1800);   // no audio work while the stage is off screen
+      }
+    }
+    ['pointerdown', 'keydown', 'touchend'].forEach((ev) => window.addEventListener(ev, unlock, { passive: true }));
+    document.addEventListener('visibilitychange', sync);
+    btn.addEventListener('click', () => { want = !want; try { localStorage.setItem('zdSound', want ? 'on' : 'off'); } catch (e) { /* storage blocked */ } paint(); if (want) unlock(); else sync(); });
+    paint();
+    return (active) => { if (active === on) return; on = active; btn.classList.toggle('is-on', on); sync(); };
+  })();
 
   // ---------- camera: front three-quarter -> side-on -> top-down -> out to the map, keyed to timeline time ----------
   // pos/look are offsets from the truck in world axes. From above, screen-up is +z and screen-left is +x.
@@ -1225,7 +1439,7 @@ function init() {
     if (contact && contact.on) renderContact(performance.now() / 1000);
     const w = sceneEl.clientWidth, h = sceneEl.clientHeight;
     const t = Math.min(T_END, Math.max(0, (window.zdDrive && window.zdDrive.t) || 0));
-    const onMap = t >= T_SWAP, live = onMap && onScreen;
+    const onMap = t >= T_SWAP, flying = t > 3.7 && t < 8.75, live = (onMap || flying) && onScreen;   // the map and the birds animate by the clock
     if (!w || !h || (!live && !redraw && t === lastT && w === lastW && h === lastH)) return;
     redraw = false;
     if (w !== lastW || h !== lastH) {
@@ -1285,6 +1499,27 @@ function init() {
       sp.position.x = sp.userData.x + Math.sin(now * 0.12 + sp.userData.phase) * sp.userData.drift;
     });
 
+    // ground lettering replaces the HTML cards on wide screens; it is sized to the strip of grass the window leaves beside the road
+    const wide = w / h >= 1.25 && w >= 861 && groundText.userData.ready === true;
+    if (wide !== groundText.userData.on) { groundText.userData.on = wide; document.body.classList.toggle('drive-ground', wide); }
+    groundText.visible = wide && t > 3.5 && t < T_DRIVE + 0.5;
+    if (groundText.visible) {
+      const room = Math.min(GT.w, Math.max(14, Math.tan(PI / 12) * 80 * (w / h) - GT.near - 1.5)), k = room / GT.w, ink = step(3.7, 4.4, t) * (1 - leave);
+      gtMats.forEach((m) => { m.opacity = ink * 0.86; });           // slightly sheer, so the turf's light and shade carry through
+      groundText.children.forEach((m) => { m.scale.setScalar(k); m.position.set(GT.rx + m.userData.side * (GT.near + room / 2), -0.16, m.userData.z); });
+    }
+    const fly = step(3.7, 4.2, t) * (1 - step(8.45, 8.75, t));                       // birds are about only while the camera looks straight down
+    birds.visible = fly > 0.01; birdMat.opacity = birdTip.opacity = fly;
+    if (birds.visible) FLOCKS.forEach((f) => {
+      const s = ((now * f.speed + f.phase) % 190) - 95;                             // one pass across the view, then round again
+      f.birds.forEach((b) => {
+        const u = b.userData, along = s - u.back, flap = Math.sin(now * u.rate + u.phase);
+        b.position.set(hx + f.dx * along - f.dz * u.lat, f.y + Math.sin(now * 1.3 + u.phase) * 0.5, hz + f.dz * along + f.dx * u.lat);
+        u.l.rotation.x = flap * 0.6; u.r.rotation.x = -flap * 0.6;                    // wingtips beat up and down
+      });
+    });
+    song(fly > 0.5 && onScreen);
+
     placeCamera(t, w / h, at);
 
     if (onMap) {
@@ -1307,10 +1542,12 @@ function init() {
     renderer.render(scene, camera);
 
     const show = step(9.75, 10.25, t);                                               // project the pin labels onto the page
+    const tracing = Math.min(CORRIDORS.length - 1, Math.max(0, Math.floor((t - T_MAP) / ROUTE_GAP)));   // corridor being traced
     mapLabels.forEach((l) => {
-      if (!show) { l.el.style.opacity = 0; return; }
+      if (!show) { l.o = 0; l.el.style.opacity = 0; return; }
+      l.o += ((!l.on || l.on.includes(tracing) ? 1 : 0) - l.o) * 0.14;                 // names cross-fade as the story moves to the next corridor
       proj.copy(l.v).project(camera);
-      l.el.style.opacity = show; l.el.style.transform = `translate(${((proj.x + 1) / 2 * w).toFixed(1)}px, ${((1 - proj.y) / 2 * h).toFixed(1)}px)`;
+      l.el.style.opacity = (show * l.o).toFixed(3); l.el.style.transform = `translate(${((proj.x + 1) / 2 * w).toFixed(1)}px, ${((1 - proj.y) / 2 * h).toFixed(1)}px)`;
     });
     if (!shown) { shown = true; document.body.classList.add('drive-3d'); assets.done(); }
   }

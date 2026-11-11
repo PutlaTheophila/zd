@@ -659,3 +659,14 @@ html.is-loading, html.is-loading body { overflow: hidden; }
 .rv.is-in  { opacity: 1; transform: none; }
 .ico-draw * { stroke-dasharray: 1; stroke-dashoffset: 1; transition: stroke-dashoffset 1.1s cubic-bezier(.4,0,.2,1) .15s; }
 .ico-draw.is-in * { stroke-dashoffset: 0; }
+
+/* birdsong toggle, shown only while the birds are on screen (top-down drive) */
+.drive__sound { position: absolute; right: var(--pad); bottom: 22px; z-index: 8; width: 42px; height: 42px; padding: 10px; border: 0; border-radius: 50%; cursor: pointer;
+  background: var(--zd-navy); color: #fff; box-shadow: 0 8px 22px rgba(14,28,51,.3); opacity: 0; visibility: hidden; transition: opacity .4s ease, visibility 0s linear .4s, background .2s ease; }
+.drive__sound.is-on { opacity: 1; visibility: visible; transition: opacity .4s ease, background .2s ease; }
+.drive__sound:hover { background: var(--accent); color: var(--zd-navy); }
+.drive__sound svg { display: block; width: 100%; height: 100%; }
+.drive__sound .x { display: none; } .drive__sound.is-muted .x { display: inline; } .drive__sound.is-muted .w { display: none; }
+
+/* wide screens: the stage-4 copy is painted on the ground in the 3D scene, so its HTML cards step aside (still there for screen readers) */
+body.drive-ground .drive__split-left, body.drive-ground .drive__split-right { opacity: 0 !important; pointer-events: none; }
