@@ -33,11 +33,19 @@ function init() {
 
   // Phones and low-power devices get a lighter scene: fewer pixels, smaller textures and shadow map,
   // fewer trees, simpler truck copies on the map, and a still image (not a second 3D view) in the contact panel.
-  const LITE = window.matchMedia('(max-width: 860px), (pointer: coarse)').matches || (navigator.hardwareConcurrency || 8) <= 4;
   // Phones save effort on scenery (fewer trees, smaller shadow map), not on sharpness: a phone screen has few CSS pixels,
   // so smooth edges and 2x resolution cost no more there than on a laptop, and the truck is what people look at.
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  // Integrated and software graphics (most budget laptops) get the lighter scene too, and start one resolution step down.
+  const gpuName = (() => { try { const gl = renderer.getContext(), ext = gl.getExtension('WEBGL_debug_renderer_info'); return ext ? String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL)) : ''; } catch (e) { return ''; } })();
+  const WEAK_GPU = /intel|uhd graphics|hd graphics|iris|radeon\(tm\) graphics|radeon r[2-7]|vega [3-8]\b|mali|adreno|powervr|swiftshader|llvmpipe|basic render/i.test(gpuName) && !/arc|apple/i.test(gpuName);
+  const LITE = window.matchMedia('(max-width: 860px), (pointer: coarse)').matches || (navigator.hardwareConcurrency || 8) <= 4 || WEAK_GPU;
+  // Resolution governor: the frame loop watches how long frames take and steps the render resolution down when the
+  // machine cannot keep up (and back up, cautiously, when it clearly can). The last step also drops the shadow pass.
+  const BASE_PR = Math.min(window.devicePixelRatio || 1, 2), STEPS = [1, 0.8, 0.65, 0.5];
+  const gov = { level: WEAK_GPU ? 1 : 0, ema: 16, n: 0, good: 0, ups: 0, at: 0, rendered: false, tick: 0, trial: null, locked: false };
+  const prFor = (level) => Math.max(0.6, BASE_PR * STEPS[level]);
+  renderer.setPixelRatio(prFor(gov.level));
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.toneMapping = THREE.NeutralToneMapping;
@@ -918,7 +926,7 @@ function init() {
         float h21(vec2 p){ p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
         float vn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
           return mix(mix(h21(i), h21(i + vec2(1, 0)), f.x), mix(h21(i + vec2(0, 1)), h21(i + vec2(1, 1)), f.x), f.y); }
-        float fbm(vec2 p){ float a = 0.5, s = 0.0; for (int i = 0; i < 4; i++){ s += a * vn(p); p = mat2(1.6, 1.2, -1.2, 1.6) * p + vec2(17.3, 9.1); a *= 0.5; } return s; }
+        float fbm(vec2 p){ float a = 0.5, s = 0.0; for (int i = 0; i < ${LITE ? 3 : 4}; i++){ s += a * vn(p); p = mat2(1.6, 1.2, -1.2, 1.6) * p + vec2(17.3, 9.1); a *= 0.5; } return s; }
         // three wave trains: a long swell, a shorter sea crossing it, and fine wind ripples; each is noise stretched along its crests
         float height(vec2 p, float t){
           vec2 w1 = vec2(p.x * 0.8 + p.y * 0.6, (p.y * 0.8 - p.x * 0.6) * 2.6);
@@ -1355,13 +1363,40 @@ function init() {
   let lastT = -1, lastW = 0, lastH = 0, shown = false, redraw = false, onScreen = true;
   new IntersectionObserver((es) => { onScreen = es[0].isIntersecting; }).observe(sceneEl);
   const proj = new THREE.Vector3(), tan = new THREE.Vector3(), washTo = new THREE.Color(0x9fd356);
+  function setQuality(level) {
+    gov.level = level; gov.n = 0; gov.good = 0; gov.ema = 16;
+    renderer.setPixelRatio(prFor(level)); lastW = 0;                                 // forces the drawing buffer to be resized on this frame
+    const shadows = level < STEPS.length - 1;
+    if (sun.castShadow !== shadows) sun.castShadow = shadows;
+    redraw = true;
+  }
   function frame() {
     requestAnimationFrame(frame);
     if (contact && contact.on) renderContact(performance.now() / 1000);
     const w = sceneEl.clientWidth, h = sceneEl.clientHeight;
     const t = Math.min(T_END, Math.max(0, (window.zdDrive && window.zdDrive.t) || 0));
     const onMap = t >= T_SWAP, flying = t > 3.7 && t < 8.75, live = (onMap || flying) && onScreen;   // the map and the birds animate by the clock
+    // governor: time from the last drawn frame to this one says whether the machine kept up
+    const clock = performance.now();
+    if (gov.rendered) {
+      const dt = clock - gov.at;
+      if (dt < 250) {
+        gov.ema += (dt - gov.ema) * 0.12; gov.n++;
+        gov.good = gov.ema < 18 ? gov.good + 1 : 0;
+        if (gov.trial) {                                                                                       // did the last step down actually buy speed?
+          if (gov.n > 45) {
+            const helped = gov.ema < gov.trial.ema * 0.88, back = gov.trial.from; gov.trial = null;
+            if (!helped) { gov.locked = true; setQuality(back); }                                              // no: something else caps the frame rate (a 30 fps power saver, say), so keep the sharper picture
+          }
+        } else if (!gov.locked) {
+          if (gov.n > 20 && gov.ema > 27 && gov.level < STEPS.length - 1) { gov.trial = { from: gov.level, ema: gov.ema }; setQuality(gov.level + 1); }   // under ~37 fps: fewer pixels
+          else if (gov.good > 360 && gov.level > 0 && gov.ups < 2) { gov.ups++; setQuality(gov.level - 1); }   // six smooth seconds: try one step sharper (twice at most)
+        }
+      } else gov.n = 0;
+    }
+    gov.at = clock; gov.rendered = false;
     if (!w || !h || (!live && !redraw && t === lastT && w === lastW && h === lastH)) return;
+    if (live && !redraw && t === lastT && w === lastW && h === lastH && (gov.tick++ & 1)) return;   // nothing but the clock is moving (birds, sea): half rate is plenty
     redraw = false;
     if (w !== lastW || h !== lastH) {
       renderer.setSize(w, h, false);
@@ -1466,6 +1501,7 @@ function init() {
       });
     }
     renderer.render(scene, camera);
+    gov.rendered = true;
 
     const show = step(9.75, 10.25, t);                                               // project the pin labels onto the page
     const tracing = Math.min(CORRIDORS.length - 1, Math.max(0, Math.floor((t - T_MAP) / ROUTE_GAP)));   // corridor being traced

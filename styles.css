@@ -660,7 +660,7 @@ html.is-loading, html.is-loading body { overflow: hidden; }
 @media (prefers-reduced-motion: reduce) { .net__dot.is-build { animation: none; } }
 
 /* ===== Scroll reveals for the sections after the hero (classes are added by script.js) ===== */
-.rv { opacity: 0; transition: opacity .8s cubic-bezier(.2,.7,.2,1) var(--d, 0s), transform 1s cubic-bezier(.2,.7,.2,1) var(--d, 0s), clip-path 1s cubic-bezier(.2,.7,.2,1) var(--d, 0s) !important; will-change: opacity, transform; }
+.rv { opacity: 0; transition: opacity .8s cubic-bezier(.2,.7,.2,1) var(--d, 0s), transform 1s cubic-bezier(.2,.7,.2,1) var(--d, 0s), clip-path 1s cubic-bezier(.2,.7,.2,1) var(--d, 0s) !important; }
 .rv--up    { transform: translateY(30px); }
 .rv--left  { transform: translateX(-26px); }
 .rv--row   { transform: translateX(-18px); }
@@ -703,3 +703,7 @@ body.drive-ground .drive__split-left, body.drive-ground .drive__split-right { op
   .header.menu-open .menu-toggle span:nth-child(1) { transform: translateY(6.5px) rotate(45deg); }
   .header.menu-open .menu-toggle span:nth-child(3) { transform: translateY(-6.5px) rotate(-45deg); }
 }
+
+/* Performance: a blurred header over the animated 3D canvas makes the browser re-blur it on every frame, which is costly
+   on integrated graphics. A near-opaque bar looks almost the same and costs nothing. */
+.header.scrolled { background: rgba(255,255,255,.95); backdrop-filter: none; -webkit-backdrop-filter: none; }
