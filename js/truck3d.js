@@ -34,8 +34,10 @@ function init() {
   // Phones and low-power devices get a lighter scene: fewer pixels, smaller textures and shadow map,
   // fewer trees, simpler truck copies on the map, and a still image (not a second 3D view) in the contact panel.
   const LITE = window.matchMedia('(max-width: 860px), (pointer: coarse)').matches || (navigator.hardwareConcurrency || 8) <= 4;
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: !LITE, alpha: true, powerPreference: 'high-performance' });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, LITE ? 1.5 : 2));
+  // Phones save effort on scenery (fewer trees, smaller shadow map), not on sharpness: a phone screen has few CSS pixels,
+  // so smooth edges and 2x resolution cost no more there than on a laptop, and the truck is what people look at.
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.toneMapping = THREE.NeutralToneMapping;
